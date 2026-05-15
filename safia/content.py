@@ -43,13 +43,26 @@ def load_wishlist_items(data_dir: Path) -> list[WishlistItem]:
         if not isinstance(row, dict):
             msg = "Each entry in 'items' must be an object"
             raise TypeError(msg)
+        raw_price = row["price_eur"]
+        if isinstance(raw_price, bool) or not isinstance(raw_price, (int, float)):
+            msg = f"Item {row.get('id', '?')!r}: price_eur must be a number"
+            raise TypeError(msg)
+        free_contribution = bool(row.get("free_contribution", False))
+        price_eur = int(raw_price)
+        if price_eur < 0:
+            msg = f"Item {row.get('id', '?')!r}: price_eur must be zero or positive"
+            raise ValueError(msg)
+        if free_contribution and price_eur != 0:
+            msg = f"Item {row.get('id', '?')!r}: free_contribution items must have price_eur 0"
+            raise ValueError(msg)
         item = WishlistItem(
             id=str(row["id"]),
             name=str(row["name"]),
             description=str(row.get("description", "")),
-            price_eur=float(row["price_eur"]),
+            price_eur=price_eur,
             image_url=str(row["image_url"]),
             payment_url=str(row.get("payment_url", "")),
+            free_contribution=free_contribution,
         )
         if item.id in seen:
             msg = f"Duplicate item id in items.json: {item.id!r}"

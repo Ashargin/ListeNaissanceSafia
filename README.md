@@ -34,7 +34,7 @@ streamlit run safia/app.py
 
 ## Payments (Stripe) and email
 
-Payments use **Stripe Checkout**. Clicking **Pay** creates a checkout session, opens Stripe in a new tab, and keeps the panel in **Pending…** until payment completes.
+Payments use **Stripe Checkout**. Clicking **Pay** creates a checkout session and redirects you to Stripe in the **same tab**. After payment, Stripe sends you back to the wishlist with a thank-you message.
 
 ### Environment
 
@@ -45,11 +45,14 @@ Payments use **Stripe Checkout**. Clicking **Pay** creates a checkout session, o
 
 On **Streamlit Community Cloud**, set these in **App settings → Secrets** (see `.streamlit/secrets.toml.example`). Locally, use `.env` or export variables before `streamlit run`.
 
-After payment, Stripe redirects back to your app. Safia verifies the session, confirms the gift in SQLite, updates the progress bar, sends a thank-you email, and closes the panel.
+After payment, Stripe redirects back to your app. Safia verifies the session, confirms the gift in SQLite, updates the progress bar, and sends email:
+
+- **Donor** — thank-you message to the email they entered on the form
+- **You** — alert with donor name, item, amount, and their optional message
 
 With `SAFIA_DEBUG=1`, **Simulate success / failure** links in the pending panel still work for testing without Stripe.
 
-Email uses SMTP (`SMTP_*` in `.env.example`) or `[smtp]` in `.streamlit/secrets.toml`.
+Email uses SMTP (`SMTP_*` in `.env.example`) or `[smtp]` in `.streamlit/secrets.toml`. Set **`SAFIA_NOTIFY_EMAIL`** (or `smtp.notify_email` in secrets) to your address for owner alerts.
 
 ## Layout
 

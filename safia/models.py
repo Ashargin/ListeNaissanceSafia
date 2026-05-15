@@ -22,9 +22,10 @@ class WishlistItem:
     id: str
     name: str
     description: str
-    price_eur: float
+    price_eur: int
     image_url: str
     payment_url: str
+    free_contribution: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,9 +34,15 @@ class Contribution:
 
     id: str
     item_id: str
-    amount_eur: float
+    amount_eur: int
     donor_name: str
     donor_email: str
     donor_message: str
     status: str
     created_at: str
+
+
+def format_eur(amount: int) -> str:
+    """Format an integer euro amount for display (e.g. ``€42``)."""
+
+    return f"€{amount}"

@@ -21,7 +21,7 @@ def init_db(path: Path) -> None:
             CREATE TABLE IF NOT EXISTS contributions (
                 id TEXT PRIMARY KEY,
                 item_id TEXT NOT NULL,
-                amount_eur REAL NOT NULL,
+                amount_eur INTEGER NOT NULL,
                 donor_name TEXT NOT NULL,
                 donor_email TEXT NOT NULL,
                 donor_message TEXT NOT NULL,
@@ -31,9 +31,17 @@ def init_db(path: Path) -> None:
             """
         )
         conn.commit()
+        conn.execute(
+            """
+            UPDATE contributions
+            SET amount_eur = CAST(ROUND(amount_eur) AS INTEGER)
+            WHERE amount_eur != CAST(ROUND(amount_eur) AS INTEGER)
+            """
+        )
+        conn.commit()
 
 
-def confirmed_totals_by_item(conn: sqlite3.Connection) -> dict[str, float]:
+def confirmed_totals_by_item(conn: sqlite3.Connection) -> dict[str, int]:
     cur = conn.execute(
         """
         SELECT item_id, COALESCE(SUM(amount_eur), 0)
@@ -42,14 +50,14 @@ def confirmed_totals_by_item(conn: sqlite3.Connection) -> dict[str, float]:
         GROUP BY item_id
         """
     )
-    return {str(row[0]): float(row[1]) for row in cur.fetchall()}
+    return {str(row[0]): int(row[1]) for row in cur.fetchall()}
 
 
 def insert_pending_contribution(
     conn: sqlite3.Connection,
     *,
     item_id: str,
-    amount_eur: float,
+    amount_eur: int,
     donor_name: str,
     donor_email: str,
     donor_message: str,

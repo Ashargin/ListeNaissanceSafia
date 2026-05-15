@@ -9,6 +9,7 @@ import streamlit as st
 import stripe
 
 from safia.payments.return_url import PaymentOutcome, build_return_urls
+from safia.texts import STRIPE_AMOUNT_MIN
 
 
 def stripe_secret_key() -> str | None:
@@ -34,7 +35,7 @@ def create_checkout_session(
     contribution_id: str,
     item_id: str,
     item_name: str,
-    amount_eur: float,
+    amount_eur: int,
     donor_email: str,
     app_base_url: str,
 ) -> str:
@@ -49,10 +50,9 @@ def create_checkout_session(
         msg = "Stripe is not configured (set STRIPE_SECRET_KEY or [stripe] in secrets)."
         raise RuntimeError(msg)
 
-    amount_cents = int(round(float(amount_eur) * 100))
-    if amount_cents < 50:
-        msg = "Amount must be at least €0.50 for card payments."
-        raise ValueError(msg)
+    amount_cents = amount_eur * 100
+    if amount_eur < 1:
+        raise ValueError(STRIPE_AMOUNT_MIN)
 
     success_url, cancel_url = build_return_urls(app_base_url, contribution_id)
     success_url = f"{success_url}&session_id={{CHECKOUT_SESSION_ID}}"

@@ -2,17 +2,25 @@
   "items": [
     {
       "id": "stroller",
-      "name": "Stroller",
-      "description": "A sturdy stroller for walks and naps on the go.",
+      "name": "Poussette",
+      "description": "Une poussette solide pour les promenades et les siestes en ville.",
       "price_eur": 420,
       "image_url": "https://picsum.photos/seed/stroller/640/480"
     },
     {
       "id": "baby-monitor",
-      "name": "Baby monitor",
-      "description": "Audio/video monitor for peaceful nights.",
-      "price_eur": 189.9,
+      "name": "Babyphone",
+      "description": "Babyphone audio/vidéo pour des nuits plus sereines.",
+      "price_eur": 189,
       "image_url": "https://picsum.photos/seed/monitor/640/480"
+    },
+    {
+      "id": "free-contribution",
+      "name": "Contribution libre",
+      "description": "Tous les souhaits sont financés, ou vous préférez offrir librement ? Tout montant est le bienvenu et nous fait très plaisir.",
+      "price_eur": 0,
+      "free_contribution": true,
+      "image_url": "https://picsum.photos/seed/free-gift/640/480"
     }
   ]
 }

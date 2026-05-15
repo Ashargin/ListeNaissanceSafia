@@ -10,6 +10,7 @@ import streamlit.components.v1 as components
 from streamlit.delta_generator import DeltaGenerator
 
 from safia.models import SiteContent, WishlistItem
+from safia.texts import progress_label
 
 
 def inject_global_css() -> None:
@@ -60,6 +61,17 @@ def inject_global_css() -> None:
           @keyframes safiaSpin {
             to { transform: rotate(360deg); }
           }
+          /* Outcome screens (thank-you / payment failed): clear Streamlit header overlap */
+          .safia-outcome-top-spacer {
+            display: block;
+            height: 3.25rem;
+            margin: 0;
+            padding: 0;
+          }
+          div[data-testid="stMarkdown"]:has(.safia-success-banner),
+          div[data-testid="stMarkdownContainer"]:has(.safia-success-banner) {
+            overflow: visible !important;
+          }
         </style>
         """,
         unsafe_allow_html=True,
@@ -92,6 +104,44 @@ def render_intro(site: SiteContent) -> None:
     st.markdown(site.intro_markdown)
 
 
+def render_outcome_top_spacer() -> None:
+    """Push outcome content below the Streamlit header (avoids white bar covering text)."""
+
+    st.markdown(
+        '<div class="safia-outcome-top-spacer" aria-hidden="true"></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_success_message(message: str) -> None:
+    """Green success block; ``\\n\\n`` separates paragraphs inside one banner."""
+
+    paragraphs = [p.strip() for p in message.strip().split("\n\n") if p.strip()]
+    parts: list[str] = []
+    for index, paragraph in enumerate(paragraphs):
+        margin = "0" if index == len(paragraphs) - 1 else "0 0 0.65em 0"
+        parts.append(
+            f"<p style='margin:{margin};line-height:1.5;'>{html.escape(paragraph)}</p>"
+        )
+    body = "".join(parts)
+
+    st.markdown(
+        f"""
+        <div class="safia-success-banner" role="alert" style="
+          padding: 1rem 1.25rem;
+          margin: 0 0 1rem 0;
+          border-radius: 0.5rem;
+          border: 1px solid rgb(195, 230, 203);
+          background-color: rgb(212, 237, 218);
+          color: rgb(21, 87, 36);
+          font-size: 1rem;
+          overflow: visible;
+        ">{body}</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def _contribution_panel_open(item_id: str) -> bool:
     if st.session_state.get(f"open_form_{item_id}"):
         return True
@@ -102,12 +152,11 @@ def render_item_card(
     parent: DeltaGenerator,
     item: WishlistItem,
     *,
-    contributed_eur: float,
+    contributed_eur: int,
     render_contribution_panel: Callable[[DeltaGenerator, DeltaGenerator, bool], None],
 ) -> None:
-    remaining = max(0.0, float(item.price_eur) - float(contributed_eur))
-    progress = 0.0 if item.price_eur <= 0 else min(1.0, float(contributed_eur) / float(item.price_eur))
     panel_open = _contribution_panel_open(item.id)
+    remaining = max(0, item.price_eur - contributed_eur)
 
     with parent:
         # Fixed 50/50 split so opening the panel never changes total page width.
@@ -121,8 +170,18 @@ def render_item_card(
                 st.subheader(item.name)
                 if item.description:
                     st.caption(item.description)
-                st.progress(
-                    progress,
-                    text=f"€{contributed_eur:.2f} of €{item.price_eur:.2f} — €{remaining:.2f} left",
-                )
+                if not item.free_contribution:
+                    progress = (
+                        0.0
+                        if item.price_eur <= 0
+                        else min(1.0, contributed_eur / item.price_eur)
+                    )
+                    st.progress(
+                        progress,
+                        text=progress_label(
+                            contributed=contributed_eur,
+                            price=item.price_eur,
+                            remaining=remaining,
+                        ),
+                    )
                 render_contribution_panel(detail_col, panel_col, panel_open)

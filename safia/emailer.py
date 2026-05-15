@@ -10,6 +10,15 @@ from typing import Any
 
 import streamlit as st
 
+from safia.models import format_eur
+from safia.texts import (
+    EMAIL_NO_MESSAGE,
+    EMAIL_OWNER_BODY,
+    EMAIL_OWNER_SUBJECT,
+    EMAIL_THANK_YOU_BODY,
+    EMAIL_THANK_YOU_SUBJECT,
+)
+
 
 def _smtp_settings() -> dict[str, Any] | None:
     """Build SMTP settings from environment variables, then Streamlit secrets."""
@@ -41,27 +50,41 @@ def _smtp_settings() -> dict[str, Any] | None:
     }
 
 
-def send_contribution_thank_you(
-    *,
-    to_email: str,
-    donor_name: str,
-    item_name: str,
-    amount_eur: float,
-) -> None:
-    """Send confirmation email. Raises on failure so the caller can surface an error."""
+def _notify_email() -> str | None:
+    """Address that receives new-contribution alerts (owner)."""
 
+    addr = os.getenv("SAFIA_NOTIFY_EMAIL", "").strip()
+    if addr:
+        return addr
+    try:
+        sec = st.secrets["smtp"]
+    except (FileNotFoundError, KeyError, TypeError):
+        return None
+    if not sec:
+        return None
+    addr = str(sec.get("notify_email", "")).strip()
+    return addr or None
+
+
+def smtp_configured() -> bool:
+    cfg = _smtp_settings()
+    return bool(cfg and cfg.get("from_email"))
+
+
+def owner_notify_email() -> str | None:
+    """Configured address for new-contribution alerts."""
+
+    return _notify_email()
+
+
+def notify_email_configured() -> bool:
+    return owner_notify_email() is not None
+
+
+def _send_email(*, to_email: str, subject: str, body: str) -> None:
     cfg = _smtp_settings()
     if not cfg or not cfg.get("from_email"):
         raise RuntimeError("Email is not configured (set SMTP_* env vars or [smtp] in .streamlit/secrets.toml).")
-
-    subject = "Thank you for your gift"
-    body = (
-        f"Hello {donor_name},\n\n"
-        f"Thank you so much for your contribution of €{amount_eur:.2f} toward “{item_name}”.\n"
-        "We are incredibly grateful.\n\n"
-        "With love,\n"
-        "Safia’s family\n"
-    )
 
     msg = EmailMessage()
     msg["Subject"] = subject
@@ -90,3 +113,48 @@ def send_contribution_thank_you(
         if user:
             server.login(user, password)
         server.send_message(msg)
+
+
+def send_contribution_thank_you(
+    *,
+    to_email: str,
+    donor_name: str,
+    item_name: str,
+    amount_eur: int,
+) -> None:
+    """Send thank-you email to the donor. Raises on failure."""
+
+    amount = format_eur(amount_eur)
+    body = EMAIL_THANK_YOU_BODY.format(
+        donor_name=donor_name,
+        amount=amount,
+        item_name=item_name,
+    )
+    _send_email(to_email=to_email, subject=EMAIL_THANK_YOU_SUBJECT, body=body)
+
+
+def send_contribution_owner_notification(
+    *,
+    to_email: str,
+    donor_name: str,
+    donor_email: str,
+    item_name: str,
+    amount_eur: int,
+    donor_message: str,
+) -> None:
+    """Notify the wishlist owner about a confirmed contribution. Raises on failure."""
+
+    message_text = donor_message.strip() or EMAIL_NO_MESSAGE
+    amount = format_eur(amount_eur)
+    body = EMAIL_OWNER_BODY.format(
+        donor_name=donor_name,
+        donor_email=donor_email,
+        item_name=item_name,
+        amount=amount,
+        message=message_text,
+    )
+    _send_email(
+        to_email=to_email,
+        subject=EMAIL_OWNER_SUBJECT.format(item_name=item_name, amount=amount),
+        body=body,
+    )
