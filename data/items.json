@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "id": "stroller",
+      "name": "Stroller",
+      "description": "A sturdy stroller for walks and naps on the go.",
+      "price_eur": 420,
+      "image_url": "https://picsum.photos/seed/stroller/640/480"
+    },
+    {
+      "id": "baby-monitor",
+      "name": "Baby monitor",
+      "description": "Audio/video monitor for peaceful nights.",
+      "price_eur": 189.9,
+      "image_url": "https://picsum.photos/seed/monitor/640/480"
+    }
+  ]
+}

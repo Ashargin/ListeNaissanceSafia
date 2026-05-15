@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "safia"
+version = "0.1.0"
+description = "Birth wishlist web app (Streamlit)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "streamlit>=1.57,<2",
+    "stripe>=11,<14",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["safia"]
