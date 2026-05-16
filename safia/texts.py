@@ -34,12 +34,12 @@ INVALID_RETURN_LINK = "Ce lien de retour de paiement n'est pas valide."
 
 THANK_YOU_BODY = (
     "Merci beaucoup, {donor_name} ! "
-    "Votre contribution de {amount} pour « {item_name} » nous touche énormément.\n\n"
+    "Votre contribution de {amount} pour « {item_name} » nous touche énormément 🥰\n\n"
     "Vous devriez également recevoir un e-mail de confirmation dans votre boîte de réception."
 )
 
 PAYMENT_FAILED = (
-    "Le paiement n'a pas abouti. Vous pouvez réessayer quand vous le souhaitez."
+    "Le paiement n'a pas abouti 😓\n\nVous pouvez réessayer quand vous le souhaitez."
 )
 
 # After « Payer »: stay on this tab, open Stripe in a new tab
@@ -50,7 +50,7 @@ CHECKOUT_HANDOFF_LINK_TEXT = "cliquez ici"
 # Validation
 ERR_AMOUNT_MIN = "Indiquez un montant entier d'au moins 1 €."
 ERR_AMOUNT_RANGE = "Indiquez un montant entier entre 1 € et le solde restant."
-ERR_AMOUNT_INVALID = "Indiquez un montant entier en euros (chiffres uniquement)."
+ERR_AMOUNT_INVALID = "Indiquez un montant entier en euros."
 ERR_NAME_REQUIRED = "Veuillez indiquer votre nom."
 ERR_EMAIL_INVALID = "Veuillez indiquer une adresse e-mail valide."
 ERR_STRIPE_NOT_CONFIGURED = (
@@ -75,13 +75,13 @@ DEV_SIMULATE_SUCCESS = "Simuler succès"
 DEV_SIMULATE_FAILURE = "Simuler échec"
 
 # Email — donor
-EMAIL_THANK_YOU_SUBJECT = "Merci pour votre cadeau"
+EMAIL_THANK_YOU_SUBJECT = "Merci pour votre cadeau 🎁"
 EMAIL_THANK_YOU_BODY = (
     "Bonjour {donor_name},\n\n"
-    "Merci infiniment pour votre contribution de {amount} pour « {item_name} ».\n"
+    "Merci infiniment pour votre contribution de {amount} pour « {item_name} » 🥰\n"
     "Votre générosité compte énormément pour nous.\n\n"
     "Avec toute notre affection,\n"
-    "La famille de Safia\n"
+    "Loïc et Meriem\n"
 )
 
 # Email — owner

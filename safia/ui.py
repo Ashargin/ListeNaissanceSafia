@@ -69,12 +69,20 @@ def inject_global_css() -> None:
           @keyframes safiaSpin {
             to { transform: rotate(360deg); }
           }
-          /* Outcome screens (thank-you / payment failed): clear Streamlit header overlap */
-          .safia-outcome-top-spacer {
+          /* Clear Streamlit header overlap (outcome screens + hero cover) */
+          .safia-outcome-top-spacer,
+          .safia-hero-top-spacer {
             display: block;
             height: 3.25rem;
             margin: 0;
             padding: 0;
+          }
+          section[data-testid="stMain"] [data-testid="stIframe"] {
+            overflow: visible !important;
+          }
+          section[data-testid="stMain"] [data-testid="stIframe"] iframe {
+            border: none;
+            display: block;
           }
           div[data-testid="stMarkdown"]:has(.safia-success-banner),
           div[data-testid="stMarkdownContainer"]:has(.safia-success-banner) {
@@ -94,6 +102,10 @@ def inject_global_css() -> None:
 def render_hero(site: SiteContent) -> None:
     """Full-width cover image with title overlay (fixed moderate height)."""
 
+    st.markdown(
+        '<div class="safia-hero-top-spacer" aria-hidden="true"></div>',
+        unsafe_allow_html=True,
+    )
     safe_title = html.escape(site.hero_title)
     safe_url = html.escape(site.cover_image_url, quote=True)
     st.iframe(

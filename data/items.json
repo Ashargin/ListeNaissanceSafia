@@ -1,26 +1,96 @@
 {
   "items": [
     {
-      "id": "stroller",
-      "name": "Poussette",
-      "description": "Une poussette solide pour les promenades et les siestes en ville.",
-      "price_eur": 420,
-      "image_url": "https://picsum.photos/seed/stroller/640/480"
+      "id": "cododo",
+      "name": "Lit cododo",
+      "description": "Un petit cocon pour la garder tout près de nous la nuit.",
+      "price_eur": 95,
+      "image_url": "https://i.imgur.com/3kCLOFQ.png"
     },
     {
-      "id": "baby-monitor",
+      "id": "draps-cododo",
+      "name": "Draps pour le cododo",
+      "description": "De jolis draps tout doux pour accompagner les premières nuits de notre petite dans son petit cocon.",
+      "price_eur": 11,
+      "image_url": "https://jollein.fr/cdn/shop/files/2511-501-68115_1_20250611T.jpg?v=1765206444&width=1500"
+    },
+    {
+      "id": "aleses-cododo",
+      "name": "Alèses pour le cododo",
+      "description": "Les bébés sont adorables, mais pas toujours très étanches...",
+      "price_eur": 17,
+      "image_url": "https://jollein.fr/cdn/shop/files/013_1_0001T.jpg?v=1752135869&width=1500"
+    },
+    {
+      "id": "sling",
+      "name": "Echarpe de portage (sling)",
+      "description": "Tout contre nous, bébé pourra découvrir le monde en se sentant bercé, rassuré et bien au chaud.",
+      "price_eur": 79,
+      "image_url": "https://www.neobulle.fr/cdn/shop/files/Sling_classique_terracotta1.jpg?v=1763986766&width=1200"
+    },
+    {
+      "id": "commode-a-langer",
+      "name": "Commode à langer",
+      "description": "L’endroit où commenceront tant de petits rituels : pyjamas du soir, premiers sourires et couches à toute heure.",
+      "price_eur": 195,
+      "image_url": "https://i.imgur.com/F3PVq1T.png"
+    },
+    {
+      "id": "veilleuse",
+      "name": "Veilleuse",
+      "description": "Une baleine pour aider bébé à plonger dans le monde des rêves.",
+      "price_eur": 28,
+      "image_url": "https://i.imgur.com/9eMLasT.png"
+    },
+    {
+      "id": "babyphone",
       "name": "Babyphone",
-      "description": "Babyphone audio/vidéo pour des nuits plus sereines.",
-      "price_eur": 189,
-      "image_url": "https://picsum.photos/seed/monitor/640/480"
+      "description": "Une petite oreille attentive pour rester près d'elle, même depuis la pièce d’à côté.",
+      "price_eur": 200,
+      "image_url": "https://i.imgur.com/dko60ZQ.png"
     },
     {
-      "id": "free-contribution",
+      "id": "thermometre-bain",
+      "name": "Thermomètre de bain",
+      "description": "Parce que “ça a l’air tiède” n’est pas une mesure très fiable.",
+      "price_eur": 17,
+      "image_url": "https://i.imgur.com/9TrSIxD.png"
+    },
+    {
+      "id": "tapis-eveil",
+      "name": "Tapis d'éveil",
+      "description": "Un petit monde au sol où elle pourra explorer, s’émerveiller et grandir à son rythme.",
+      "price_eur": 80,
+      "image_url": "https://i.imgur.com/NHw3uVl.png"
+    },
+    {
+      "id": "cartes-contraste",
+      "name": "Cartes de contraste",
+      "description": "Des visuels contrastés simples et épurés pour accompagner ses premiers regards.",
+      "price_eur": 19,
+      "image_url": "https://www.vertbaudet.fr/fstrz/r/s/media.vertbaudet.fr/Pictures/vertbaudet/749094/boite-de-6-cartes-imagier-en-noir-et-blanc-collection.jpg?width=457?width=1320"
+    },
+    {
+      "id": "biberon",
+      "name": "Biberon et tétines",
+      "description": "Pour les petites faims.",
+      "price_eur": 20,
+      "image_url": "https://i.imgur.com/ec2yK34.png"
+    },
+    {
+      "id": "bodies",
+      "name": "Set de bodies",
+      "description": "Des bodies confortables pour habiller bébé au quotidien.",
+      "price_eur": 19,
+      "image_url": "https://i.imgur.com/JbaLr6x.png"
+    },
+    {
+      "id": "contribution-libre",
       "name": "Contribution libre",
-      "description": "Tous les souhaits sont financés, ou vous préférez offrir librement ? Tout montant est le bienvenu et nous fait très plaisir.",
+      "description": "Une contribution libre si vous préférez participer à votre façon à son arrivée.",
       "price_eur": 0,
       "free_contribution": true,
-      "image_url": "https://picsum.photos/seed/free-gift/640/480"
+      "image_url": "https://i.imgur.com/xc27VEa.png"
     }
   ]
 }
