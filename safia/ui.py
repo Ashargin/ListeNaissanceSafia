@@ -6,7 +6,6 @@ import html
 from collections.abc import Callable
 
 import streamlit as st
-import streamlit.components.v1 as components
 from streamlit.delta_generator import DeltaGenerator
 
 from safia.models import SiteContent, WishlistItem
@@ -97,7 +96,7 @@ def render_hero(site: SiteContent) -> None:
 
     safe_title = html.escape(site.hero_title)
     safe_url = html.escape(site.cover_image_url, quote=True)
-    components.html(
+    st.iframe(
         f"""
         <div style="position:relative;width:100%;height:220px;border-radius:12px;overflow:hidden;
                     box-shadow:0 6px 24px rgba(0,0,0,0.12);margin:0 0 1rem 0;">

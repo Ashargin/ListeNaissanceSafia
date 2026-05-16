@@ -7,7 +7,6 @@ import json
 import html
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 from safia.config import Settings, load_settings
 from safia.content import load_site_content, load_wishlist_items
@@ -133,7 +132,7 @@ def _render_checkout_new_tab_handoff(url: str) -> None:
         unsafe_allow_html=True,
     )
     js_url = json.dumps(url)
-    components.html(
+    st.iframe(
         f"<script>try{{var u={js_url};var t=window.top||window;if(u)t.open(u,"
         f'"_blank","noopener,noreferrer");}}catch(e){{}}</script>',
         height=1,

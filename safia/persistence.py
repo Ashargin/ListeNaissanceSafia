@@ -72,6 +72,16 @@ def _confirmed_total_row(row: Any) -> tuple[str, int]:
     return str(row[0]), int(row[1])
 
 
+def _reset_postgres_pool(database_url: str) -> None:
+    """Drop cached pool after Neon idle shutdown or other server-side disconnect."""
+
+    try:
+        _postgres_pool(database_url).close()
+    except Exception:
+        pass
+    _postgres_pool.clear()
+
+
 @st.cache_resource
 def _postgres_pool(database_url: str) -> Any:
     """Reuse connections to remote Postgres (avoids a full connect per Streamlit rerun)."""
@@ -81,8 +91,11 @@ def _postgres_pool(database_url: str) -> Any:
 
     return ConnectionPool(
         conninfo=database_url,
-        min_size=1,
+        min_size=0,
         max_size=4,
+        max_lifetime=300,
+        max_idle=120,
+        check=ConnectionPool.check_connection,
         kwargs={"row_factory": dict_row},
         open=True,
     )
@@ -97,8 +110,23 @@ def db_connect(
     """Open a DB connection (PostgreSQL when ``database_url`` is set)."""
 
     if database_url:
-        with _postgres_pool(database_url).connection() as conn:
-            yield conn
+        from psycopg import OperationalError
+        from psycopg.errors import AdminShutdown
+
+        last_exc: BaseException | None = None
+        for attempt in range(2):
+            try:
+                with _postgres_pool(database_url).connection() as conn:
+                    yield conn
+                return
+            except (OperationalError, AdminShutdown) as exc:
+                last_exc = exc
+                _reset_postgres_pool(database_url)
+                if attempt == 0:
+                    continue
+                raise
+        if last_exc is not None:
+            raise last_exc
         return
 
     path = db_path(data_dir)
@@ -128,7 +156,12 @@ def ensure_db_initialized(*, database_url: str | None, data_dir: Path) -> None:
     key = f"_safia_db_ready:{database_url or data_dir}"
     if st.session_state.get(key):
         return
-    init_db(database_url=database_url, data_dir=data_dir)
+    try:
+        init_db(database_url=database_url, data_dir=data_dir)
+    except Exception:
+        if database_url:
+            _reset_postgres_pool(database_url)
+        raise
     st.session_state[key] = True
 
 
