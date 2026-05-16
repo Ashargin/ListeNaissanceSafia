@@ -42,6 +42,11 @@ PAYMENT_FAILED = (
     "Le paiement n'a pas abouti. Vous pouvez réessayer quand vous le souhaitez."
 )
 
+# After « Payer »: stay on this tab, open Stripe in a new tab
+CHECKOUT_HANDOFF_LINE1 = "Vous pouvez fermer cet onglet en toute sécurité."
+CHECKOUT_HANDOFF_LINK_PREFIX = "Si le lien de paiement ne s'est pas ouvert, "
+CHECKOUT_HANDOFF_LINK_TEXT = "cliquez ici"
+
 # Validation
 ERR_AMOUNT_MIN = "Indiquez un montant entier d'au moins 1 €."
 ERR_AMOUNT_RANGE = "Indiquez un montant entier entre 1 € et le solde restant."

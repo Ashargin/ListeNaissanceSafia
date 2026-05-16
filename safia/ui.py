@@ -51,6 +51,15 @@ def inject_global_css() -> None:
           div[data-testid="stHorizontalBlock"] {
             align-items: flex-start;
           }
+          /* Item photos: a bit taller than default stretch height so the bottom aligns
+             closer to the text block (object-fit keeps cropping natural). */
+          section[data-testid="stMain"] [data-testid="stImageContainer"] img,
+          section[data-testid="stMain"] a[data-testid="stImageLink"] img {
+            min-height: 12.5rem;
+            object-fit: cover;
+            object-position: center;
+            width: 100%;
+          }
           div[data-testid="stForm"] {
             border: none !important;
             padding: 0 !important;
@@ -70,6 +79,11 @@ def inject_global_css() -> None:
           }
           div[data-testid="stMarkdown"]:has(.safia-success-banner),
           div[data-testid="stMarkdownContainer"]:has(.safia-success-banner) {
+            overflow: visible !important;
+          }
+          /* Checkout handoff: same readable width as intro, avoid header clipping */
+          div[data-testid="stMarkdown"]:has(.safia-checkout-handoff),
+          div[data-testid="stMarkdownContainer"]:has(.safia-checkout-handoff) {
             overflow: visible !important;
           }
         </style>

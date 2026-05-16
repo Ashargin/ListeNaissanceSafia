@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 
 import html
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from safia.config import load_settings
 from safia.content import load_site_content, load_wishlist_items
@@ -39,20 +41,68 @@ from safia.ui import (
 )
 
 
-def _parse_amount_field(raw: object) -> int | None:
-    value = str(raw or "").strip()
-    if not value.isdigit():
-        return None
-    return int(value)
-
-
-def _ensure_amount_field_str(amt_key: str) -> None:
-    """``st.text_input`` requires a string; migrate legacy numeric session values."""
+def _ensure_amount_integer_field(amt_key: str, *, default: int = 1) -> None:
+    """Ensure ``amt_key`` holds an int for ``st.number_input`` (migrate legacy strings)."""
 
     if amt_key not in st.session_state:
-        st.session_state[amt_key] = ""
-    elif not isinstance(st.session_state[amt_key], str):
-        st.session_state[amt_key] = ""
+        st.session_state[amt_key] = default
+        return
+    raw = st.session_state[amt_key]
+    if isinstance(raw, bool):
+        st.session_state[amt_key] = default
+        return
+    if isinstance(raw, int):
+        return
+    if isinstance(raw, float) and raw == int(raw):
+        st.session_state[amt_key] = int(raw)
+        return
+    if isinstance(raw, str):
+        s = raw.strip()
+        if s.isdigit():
+            st.session_state[amt_key] = int(s)
+        else:
+            st.session_state[amt_key] = default
+        return
+    st.session_state[amt_key] = default
+
+
+def _amount_from_session(amt_key: str) -> int | None:
+    raw = st.session_state.get(amt_key)
+    if isinstance(raw, bool):
+        return None
+    if isinstance(raw, int):
+        return raw
+    if isinstance(raw, float) and raw == int(raw):
+        return int(raw)
+    if isinstance(raw, str) and raw.strip().isdigit():
+        return int(raw.strip())
+    return None
+
+
+def _gift_entire_declined_key(item_id: str) -> str:
+    """Session flag: user unchecked « full remaining » while amount still equals remaining."""
+
+    return f"gift_entire_declined_{item_id}"
+
+
+def _sync_gift_entire_checkbox(
+    *,
+    amt_key: str,
+    entire_key: str,
+    remaining: int,
+    declined_key: str,
+) -> None:
+    """Keep « gift full remaining » in sync with the amount (runs after ``number_input``)."""
+
+    amt = _amount_from_session(amt_key)
+    if amt is None:
+        return
+    rem = int(remaining)
+    if amt != rem:
+        st.session_state.pop(declined_key, None)
+        st.session_state[entire_key] = False
+    elif not st.session_state.get(declined_key):
+        st.session_state[entire_key] = True
 
 
 def _clear_payment_query_params() -> None:
@@ -68,13 +118,27 @@ def _clear_payment_query_params() -> None:
             del st.query_params[key]
 
 
-def _redirect_to_checkout(url: str) -> None:
-    """Open Stripe Checkout in this tab (no popup — one tab for the whole flow)."""
+def _render_checkout_new_tab_handoff(url: str) -> None:
+    """Open Stripe Checkout in a new tab and show a short notice on this tab."""
 
-    safe_url = html.escape(url, quote=True)
+    render_outcome_top_spacer()
+    safe_href = html.escape(url, quote=True)
+    line1 = html.escape(t.CHECKOUT_HANDOFF_LINE1)
+    prefix = html.escape(t.CHECKOUT_HANDOFF_LINK_PREFIX)
+    link_label = html.escape(t.CHECKOUT_HANDOFF_LINK_TEXT)
     st.markdown(
-        f'<meta http-equiv="refresh" content="0;url={safe_url}">',
+        f'<div class="safia-checkout-handoff">'
+        f'<p style="margin:0 0 0.75rem 0;line-height:1.55;">{line1}</p>'
+        f'<p style="margin:0;line-height:1.55;">{prefix}'
+        f'<a href="{safe_href}" target="_blank" rel="noopener noreferrer">{link_label}</a>'
+        f"</p></div>",
         unsafe_allow_html=True,
+    )
+    js_url = json.dumps(url)
+    components.html(
+        f"<script>try{{var u={js_url};var t=window.top||window;if(u)t.open(u,"
+        f'"_blank","noopener,noreferrer");}}catch(e){{}}</script>',
+        height=1,
     )
 
 
@@ -232,6 +296,7 @@ def _render_contribution_panel(
     pending_key = f"pending_payment_{item.id}"
     amt_key = f"amt_{item.id}"
     entire_key = f"entire_{item.id}"
+    declined_key = _gift_entire_declined_key(item.id)
 
     with info_parent:
         if not free and remaining <= 0:
@@ -242,6 +307,7 @@ def _render_contribution_panel(
             if st.button(t.BTN_CLOSE, key=f"close_contrib_{item.id}"):
                 st.session_state.pop(open_key, None)
                 st.session_state.pop(pending_key, None)
+                st.session_state.pop(_gift_entire_declined_key(item.id), None)
                 st.rerun()
         elif st.button(t.BTN_CONTRIBUTE, key=f"toggle_contrib_{item.id}"):
             st.session_state[open_key] = True
@@ -256,7 +322,13 @@ def _render_contribution_panel(
             is_pending = pending is not None
 
             if not is_pending:
-                _ensure_amount_field_str(amt_key)
+                _ensure_amount_integer_field(amt_key, default=1)
+                if not free:
+                    cur = int(st.session_state[amt_key])
+                    st.session_state[amt_key] = max(1, min(cur, remaining))
+                else:
+                    cur = int(st.session_state[amt_key])
+                    st.session_state[amt_key] = max(1, cur)
 
             name_key = f"name_{item.id}"
             email_key = f"email_{item.id}"
@@ -283,18 +355,44 @@ def _render_contribution_panel(
                 )
 
             with amount_col:
-                st.text_input(
-                    t.LABEL_AMOUNT,
-                    key=amt_key,
-                    placeholder=t.AMOUNT_PLACEHOLDER,
-                    disabled=is_pending,
-                )
+                if free:
+                    st.number_input(
+                        t.LABEL_AMOUNT,
+                        min_value=1,
+                        max_value=None,
+                        step=1,
+                        format="%d",
+                        key=amt_key,
+                        disabled=is_pending,
+                    )
+                else:
+                    st.number_input(
+                        t.LABEL_AMOUNT,
+                        min_value=1,
+                        max_value=max(1, remaining),
+                        step=1,
+                        format="%d",
+                        key=amt_key,
+                        disabled=is_pending,
+                    )
+                    if not is_pending:
+                        _sync_gift_entire_checkbox(
+                            amt_key=amt_key,
+                            entire_key=entire_key,
+                            remaining=remaining,
+                            declined_key=declined_key,
+                        )
 
             if not free:
 
                 def on_gift_entire_toggle() -> None:
                     if st.session_state.get(entire_key):
-                        st.session_state[amt_key] = str(remaining)
+                        st.session_state[amt_key] = int(remaining)
+                        st.session_state.pop(declined_key, None)
+                    else:
+                        amt = _amount_from_session(amt_key)
+                        if amt is not None and amt == int(remaining):
+                            st.session_state[declined_key] = True
 
                 with gift_col:
                     st.checkbox(
@@ -363,18 +461,15 @@ def _render_contribution_panel(
             donor_message = str(st.session_state.get(msg_key, "")).strip()
 
             if free:
-                amount = _parse_amount_field(st.session_state.get(amt_key))
-                if amount is None:
+                amount = _amount_from_session(amt_key)
+                if amount is None or amount < 1:
                     st.error(t.ERR_AMOUNT_INVALID)
-                    return
-                if amount < 1:
-                    st.error(t.ERR_AMOUNT_MIN)
                     return
             else:
                 if st.session_state.get(entire_key):
                     amount = remaining
                 else:
-                    amount = _parse_amount_field(st.session_state.get(amt_key))
+                    amount = _amount_from_session(amt_key)
                     if amount is None:
                         st.error(t.ERR_AMOUNT_INVALID)
                         return
@@ -423,8 +518,8 @@ def _render_contribution_panel(
 
             st.session_state.pop(open_key, None)
             st.session_state.pop(pending_key, None)
-            _redirect_to_checkout(payment_url)
-            st.stop()
+            st.session_state["checkout_handoff_url"] = payment_url
+            st.rerun()
 
 
 def run() -> None:
@@ -442,13 +537,18 @@ def run() -> None:
     )
     inject_global_css()
 
+    if _handle_payment_return(items=items, path=path, debug=settings.debug):
+        return
+
+    handoff_url = st.session_state.pop("checkout_handoff_url", None)
+    if handoff_url:
+        _render_checkout_new_tab_handoff(handoff_url)
+        st.stop()
+
     if settings.debug:
         st.caption(t.DEBUG_MODE)
     if not stripe_configured():
         st.warning(t.WARN_STRIPE_NOT_CONFIGURED)
-
-    if _handle_payment_return(items=items, path=path, debug=settings.debug):
-        return
 
     if st.session_state.get("payment_failed"):
         _render_payment_failed()
