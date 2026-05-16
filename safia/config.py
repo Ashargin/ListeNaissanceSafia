@@ -27,6 +27,21 @@ def _resolve_app_base_url() -> str:
     return raw.rstrip("/")
 
 
+def _resolve_database_url() -> str | None:
+    for name in ("SAFIA_DATABASE_URL", "DATABASE_URL"):
+        raw = os.getenv(name, "").strip()
+        if raw:
+            return raw
+    try:
+        import streamlit as st
+
+        sec = st.secrets["database"]
+        raw = str(sec.get("url", "")).strip()
+        return raw or None
+    except (FileNotFoundError, KeyError, TypeError, AttributeError):
+        return None
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     """Runtime settings loaded each run."""
@@ -34,6 +49,7 @@ class Settings:
     debug: bool
     data_dir: Path
     app_base_url: str
+    database_url: str | None
 
 
 def load_settings() -> Settings:
@@ -41,4 +57,5 @@ def load_settings() -> Settings:
         debug=_env_bool("SAFIA_DEBUG", default=False),
         data_dir=_resolve_data_dir(),
         app_base_url=_resolve_app_base_url(),
+        database_url=_resolve_database_url(),
     )

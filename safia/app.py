@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import json
-import sqlite3
-from pathlib import Path
 
 import html
 
 import streamlit as st
 import streamlit.components.v1 as components
 
-from safia.config import load_settings
+from safia.config import Settings, load_settings
 from safia.content import load_site_content, load_wishlist_items
 from safia.models import WishlistItem, format_eur
 import stripe
@@ -25,7 +23,7 @@ from safia.payments.stripe_checkout import (
 )
 from safia.persistence import (
     confirmed_totals_by_item,
-    db_path,
+    db_connect,
     get_contribution,
     init_db,
     insert_pending_contribution,
@@ -145,7 +143,7 @@ def _render_checkout_new_tab_handoff(url: str) -> None:
 def _handle_payment_return(
     *,
     items: list[WishlistItem],
-    path: Path,
+    settings: Settings,
     debug: bool,
 ) -> bool:
     """Process Stripe or generic return URLs after checkout."""
@@ -156,7 +154,9 @@ def _handle_payment_return(
     if session_id and contribution_id:
         stripe_outcome = verify_checkout_return(session_id, contribution_id)
         if stripe_outcome is not None:
-            with sqlite3.connect(path) as conn:
+            with db_connect(
+                database_url=settings.database_url, data_dir=settings.data_dir
+            ) as conn:
                 if stripe_outcome == PaymentOutcome.SUCCESS:
                     payload = finalize_payment_success(
                         conn,
@@ -185,7 +185,7 @@ def _handle_payment_return(
     if parsed is None:
         return False
 
-    with sqlite3.connect(path) as conn:
+    with db_connect(database_url=settings.database_url, data_dir=settings.data_dir) as conn:
         if parsed.outcome == PaymentOutcome.SUCCESS:
             payload = finalize_payment_success(
                 conn,
@@ -243,13 +243,13 @@ def _render_payment_failed() -> None:
 def _poll_pending_payment(
     contribution_id: str,
     *,
-    path: Path,
+    settings: Settings,
     items: list[WishlistItem],
     debug: bool,
 ) -> None:
     """While the panel shows pending, watch the DB for a return-URL or webhook update."""
 
-    with sqlite3.connect(path) as conn:
+    with db_connect(database_url=settings.database_url, data_dir=settings.data_dir) as conn:
         row = get_contribution(conn, contribution_id)
     if row is None:
         return
@@ -259,7 +259,9 @@ def _poll_pending_payment(
         return
 
     if status == "confirmed":
-        with sqlite3.connect(path) as conn:
+        with db_connect(
+            database_url=settings.database_url, data_dir=settings.data_dir
+        ) as conn:
             payload = finalize_payment_success(
                 conn,
                 contribution_id,
@@ -272,7 +274,9 @@ def _poll_pending_payment(
         return
 
     if status == "failed":
-        with sqlite3.connect(path) as conn:
+        with db_connect(
+            database_url=settings.database_url, data_dir=settings.data_dir
+        ) as conn:
             finalize_payment_failure(conn, contribution_id)
         st.session_state["payment_failed"] = True
         st.rerun()
@@ -285,7 +289,7 @@ def _render_contribution_panel(
     *,
     item: WishlistItem,
     contributed_eur: int,
-    path: Path,
+    settings: Settings,
     app_base_url: str,
     debug: bool,
     items: list[WishlistItem],
@@ -441,7 +445,7 @@ def _render_contribution_panel(
                 )
                 _poll_pending_payment(
                     contribution_id,
-                    path=path,
+                    settings=settings,
                     items=items,
                     debug=debug,
                 )
@@ -487,7 +491,9 @@ def _render_contribution_panel(
                 st.error(t.ERR_STRIPE_NOT_CONFIGURED)
                 return
 
-            with sqlite3.connect(path) as conn:
+            with db_connect(
+                database_url=settings.database_url, data_dir=settings.data_dir
+            ) as conn:
                 contribution_id = insert_pending_contribution(
                     conn,
                     item_id=item.id,
@@ -526,8 +532,7 @@ def run() -> None:
     settings = load_settings()
     site = load_site_content(settings.data_dir)
     items = load_wishlist_items(settings.data_dir)
-    path = db_path(settings.data_dir)
-    init_db(path)
+    init_db(database_url=settings.database_url, data_dir=settings.data_dir)
 
     st.set_page_config(
         page_title=site.page_title,
@@ -537,7 +542,7 @@ def run() -> None:
     )
     inject_global_css()
 
-    if _handle_payment_return(items=items, path=path, debug=settings.debug):
+    if _handle_payment_return(items=items, settings=settings, debug=settings.debug):
         return
 
     handoff_url = st.session_state.pop("checkout_handoff_url", None)
@@ -568,7 +573,7 @@ def run() -> None:
     render_intro(site)
     st.divider()
 
-    with sqlite3.connect(path) as conn:
+    with db_connect(database_url=settings.database_url, data_dir=settings.data_dir) as conn:
         totals = confirmed_totals_by_item(conn)
 
     for item in items:
@@ -582,7 +587,7 @@ def run() -> None:
                     is_open,
                     item=it,
                     contributed_eur=contrib,
-                    path=path,
+                    settings=settings,
                     app_base_url=settings.app_base_url,
                     debug=settings.debug,
                     items=items,

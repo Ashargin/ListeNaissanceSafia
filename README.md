@@ -1,6 +1,6 @@
 # Safia
 
-Small Streamlit app for a birth wishlist. Content lives in `data/`; contributions are stored locally in `data/app.db`.
+Small Streamlit app for a birth wishlist. Content lives in `data/`; contributions are stored in **PostgreSQL** when configured, or in local `data/app.db` for development.
 
 ## Setup
 
@@ -15,7 +15,7 @@ pip install -e .
 
 Use this virtual environment when running the app (not a global Anaconda install with an older Streamlit).
 
-Optional: copy `.env.example` to `.env` if your tooling loads it. See that file for `SAFIA_DEBUG`, `SAFIA_DATA_DIR`, and optional SMTP variables.
+Optional: copy `.env.example` to `.env` if your tooling loads it. See that file for `SAFIA_DEBUG`, `SAFIA_DATA_DIR`, `SAFIA_DATABASE_URL`, and optional SMTP variables.
 
 ## Run
 
@@ -31,6 +31,34 @@ streamlit run safia/app.py
 |------|---------|
 | `data/site.json` | Page title, hero title, cover image URL, intro text (Markdown) |
 | `data/items.json` | Wishlist lines: name, description, price in euros, image URL |
+
+## Database (contributions)
+
+Gift totals and payment rows must survive redeploys on Streamlit Cloud. Use a hosted **PostgreSQL** database (e.g. [Neon](https://neon.tech), [Supabase](https://supabase.com), or Railway).
+
+1. Create a project and copy the **connection string** (`postgresql://…`).
+2. For SSL hosts, append `?sslmode=require` if it is not already in the URL.
+3. Set the URL in secrets or env:
+
+| Variable | Example |
+|----------|---------|
+| `SAFIA_DATABASE_URL` | `postgresql://user:pass@ep-….neon.tech/neondb?sslmode=require` |
+
+On **Streamlit Community Cloud**, add to **App settings → Secrets**:
+
+```toml
+[database]
+url = "postgresql://..."
+```
+
+If `SAFIA_DATABASE_URL` is **not** set, the app uses `data/app.db` (SQLite) — fine locally, **not** persistent on Cloud.
+
+The table is created automatically on startup. To move an existing local SQLite file:
+
+```bash
+set SAFIA_DATABASE_URL=postgresql://...
+python scripts/migrate_sqlite_to_postgres.py
+```
 
 ## Payments (Stripe) and email
 
@@ -61,9 +89,9 @@ Email uses SMTP (`SMTP_*` in `.env.example`) or `[smtp]` in `.streamlit/secrets.
 | `safia/app.py` | Streamlit UI and contribution flow |
 | `safia/ui.py` | Hero header, item cards, global CSS |
 | `safia/content.py` | Load `data/site.json` and `data/items.json` |
-| `safia/persistence.py` | SQLite totals and contribution rows |
+| `safia/persistence.py` | PostgreSQL or SQLite totals and contribution rows |
 | `safia/emailer.py` | Thank-you email |
 | `safia/payments/stripe_checkout.py` | Stripe Checkout sessions |
 | `safia/config.py` | Paths and flags from the environment |
-| `data/` | Public JSON catalog + generated `app.db` (gitignored) |
+| `data/` | Public JSON catalog; optional local `app.db` when PostgreSQL is not configured |
 | `.streamlit/config.toml` | Streamlit defaults (non-secret) |

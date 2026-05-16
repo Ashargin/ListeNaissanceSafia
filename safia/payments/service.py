@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sqlite3
 from typing import Any
 
 import streamlit as st
@@ -19,7 +18,12 @@ from safia.texts import (
     WARN_THANK_YOU_EMAIL_FAILED,
 )
 from safia.models import WishlistItem
-from safia.persistence import confirm_contribution, fail_contribution, get_contribution
+from safia.persistence import (
+    DbConnection,
+    confirm_contribution,
+    fail_contribution,
+    get_contribution,
+)
 
 
 def clear_item_panel_state(item_id: str) -> None:
@@ -78,7 +82,7 @@ def thank_you_payload(row: dict[str, Any], item_name: str) -> dict[str, Any]:
 
 
 def finalize_payment_success(
-    conn: sqlite3.Connection,
+    conn: DbConnection,
     contribution_id: str,
     *,
     items: list[WishlistItem],
@@ -115,7 +119,7 @@ def finalize_payment_success(
 
 
 def finalize_payment_failure(
-    conn: sqlite3.Connection,
+    conn: DbConnection,
     contribution_id: str,
 ) -> bool:
     """Mark contribution failed and close panel state. Idempotent."""
