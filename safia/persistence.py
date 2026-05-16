@@ -180,6 +180,33 @@ def confirmed_totals_by_item(conn: DbConnection) -> dict[str, int]:
     return dict(_confirmed_total_row(row) for row in cur.fetchall())
 
 
+_CONTRIBUTION_TOTALS_KEY = "safia_contribution_totals"
+
+
+def fetch_confirmed_totals(*, database_url: str | None, data_dir: Path) -> dict[str, int]:
+    """Load confirmed € totals per item from the database."""
+
+    with db_connect(database_url=database_url, data_dir=data_dir) as conn:
+        return confirmed_totals_by_item(conn)
+
+
+def get_cached_confirmed_totals(*, database_url: str | None, data_dir: Path) -> dict[str, int]:
+    """Return totals from session state; query the DB only on first load after invalidation."""
+
+    cached = st.session_state.get(_CONTRIBUTION_TOTALS_KEY)
+    if isinstance(cached, dict):
+        return cached
+    totals = fetch_confirmed_totals(database_url=database_url, data_dir=data_dir)
+    st.session_state[_CONTRIBUTION_TOTALS_KEY] = totals
+    return totals
+
+
+def invalidate_confirmed_totals() -> None:
+    """Drop cached totals (call after a contribution is confirmed)."""
+
+    st.session_state.pop(_CONTRIBUTION_TOTALS_KEY, None)
+
+
 def insert_pending_contribution(
     conn: DbConnection,
     *,

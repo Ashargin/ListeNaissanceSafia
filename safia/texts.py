@@ -29,6 +29,7 @@ BTN_BACK_WISHLIST = "Retour à la liste"
 # Payment return / outcomes
 PAYMENT_NOT_CONFIRMED = "Ce paiement n'a pas pu être confirmé."
 CONFIRMING_PAYMENT = "Confirmation du paiement en cours…"
+LOADING_PAYMENT_RETURN = "Confirmation de votre paiement en cours, merci de patienter…"
 BTN_REFRESH = "Actualiser"
 INVALID_RETURN_LINK = "Ce lien de retour de paiement n'est pas valide."
 

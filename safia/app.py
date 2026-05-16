@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import nullcontext
 
 import html
 
@@ -21,11 +22,12 @@ from safia.payments.stripe_checkout import (
     verify_checkout_return,
 )
 from safia.persistence import (
-    confirmed_totals_by_item,
     db_connect,
     ensure_db_initialized,
+    get_cached_confirmed_totals,
     get_contribution,
     insert_pending_contribution,
+    invalidate_confirmed_totals,
 )
 from safia import texts as t
 from safia.ui import (
@@ -102,6 +104,16 @@ def _sync_gift_entire_checkbox(
         st.session_state[entire_key] = True
 
 
+def _is_payment_return() -> bool:
+    """True when the URL is a Stripe or generic payment return (show loading UI early)."""
+
+    if query_param_first(st.query_params, "session_id") and query_param_first(
+        st.query_params, "contribution_id"
+    ):
+        return True
+    return parse_payment_return(st.query_params) is not None
+
+
 def _clear_payment_query_params() -> None:
     for key in (
         "payment_status",
@@ -167,6 +179,7 @@ def _handle_payment_return(
                     if payload is None:
                         st.warning(t.PAYMENT_NOT_CONFIRMED)
                         return True
+                    invalidate_confirmed_totals()
                     st.session_state["thank_you"] = payload
                     st.rerun()
 
@@ -196,6 +209,7 @@ def _handle_payment_return(
             if payload is None:
                 st.warning(t.PAYMENT_NOT_CONFIRMED)
                 return True
+            invalidate_confirmed_totals()
             st.session_state["thank_you"] = payload
             st.rerun()
 
@@ -268,6 +282,7 @@ def _poll_pending_payment(
                 debug=debug,
             )
         if payload:
+            invalidate_confirmed_totals()
             st.session_state["thank_you"] = payload
             st.rerun()
         return
@@ -530,8 +545,6 @@ def _render_contribution_panel(
 def run() -> None:
     settings = load_settings()
     site = load_site_content(settings.data_dir)
-    items = load_wishlist_items(settings.data_dir)
-    ensure_db_initialized(database_url=settings.database_url, data_dir=settings.data_dir)
 
     st.set_page_config(
         page_title=site.page_title,
@@ -541,8 +554,16 @@ def run() -> None:
     )
     inject_global_css()
 
-    if _handle_payment_return(items=items, settings=settings, debug=settings.debug):
-        return
+    payment_return = _is_payment_return()
+    if payment_return:
+        render_outcome_top_spacer()
+
+    load_ctx = st.spinner(t.LOADING_PAYMENT_RETURN) if payment_return else nullcontext()
+    with load_ctx:
+        items = load_wishlist_items(settings.data_dir)
+        ensure_db_initialized(database_url=settings.database_url, data_dir=settings.data_dir)
+        if _handle_payment_return(items=items, settings=settings, debug=settings.debug):
+            return
 
     handoff_url = st.session_state.pop("checkout_handoff_url", None)
     if handoff_url:
@@ -572,8 +593,10 @@ def run() -> None:
     render_intro(site)
     st.divider()
 
-    with db_connect(database_url=settings.database_url, data_dir=settings.data_dir) as conn:
-        totals = confirmed_totals_by_item(conn)
+    totals = get_cached_confirmed_totals(
+        database_url=settings.database_url,
+        data_dir=settings.data_dir,
+    )
 
     for item in items:
         contributed = totals.get(item.id, 0)
