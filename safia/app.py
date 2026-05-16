@@ -78,32 +78,6 @@ def _amount_from_session(amt_key: str) -> int | None:
     return None
 
 
-def _gift_entire_declined_key(item_id: str) -> str:
-    """Session flag: user unchecked « full remaining » while amount still equals remaining."""
-
-    return f"gift_entire_declined_{item_id}"
-
-
-def _sync_gift_entire_checkbox(
-    *,
-    amt_key: str,
-    entire_key: str,
-    remaining: int,
-    declined_key: str,
-) -> None:
-    """Keep « gift full remaining » in sync with the amount (runs after ``number_input``)."""
-
-    amt = _amount_from_session(amt_key)
-    if amt is None:
-        return
-    rem = int(remaining)
-    if amt != rem:
-        st.session_state.pop(declined_key, None)
-        st.session_state[entire_key] = False
-    elif not st.session_state.get(declined_key):
-        st.session_state[entire_key] = True
-
-
 def _is_payment_return() -> bool:
     """True when the URL is a Stripe or generic payment return (show loading UI early)."""
 
@@ -313,8 +287,6 @@ def _render_contribution_panel(
     open_key = f"open_form_{item.id}"
     pending_key = f"pending_payment_{item.id}"
     amt_key = f"amt_{item.id}"
-    entire_key = f"entire_{item.id}"
-    declined_key = _gift_entire_declined_key(item.id)
 
     with info_parent:
         if not free and remaining <= 0:
@@ -325,7 +297,6 @@ def _render_contribution_panel(
             if st.button(t.BTN_CLOSE, key=f"close_contrib_{item.id}"):
                 st.session_state.pop(open_key, None)
                 st.session_state.pop(pending_key, None)
-                st.session_state.pop(_gift_entire_declined_key(item.id), None)
                 st.rerun()
         elif st.button(t.BTN_CONTRIBUTE, key=f"toggle_contrib_{item.id}"):
             st.session_state[open_key] = True
@@ -359,66 +330,22 @@ def _render_contribution_panel(
                 st.text_input(t.LABEL_EMAIL, key=email_key, disabled=is_pending)
             st.text_area(t.LABEL_MESSAGE, height=72, key=msg_key, disabled=is_pending)
 
-            if free:
-                amount_col, pay_col = st.columns(
-                    [2, 0.7],
-                    gap="small",
-                    vertical_alignment="bottom",
-                )
-            else:
-                amount_col, gift_col, pay_col = st.columns(
-                    [1, 1.1, 0.7],
-                    gap="small",
-                    vertical_alignment="bottom",
-                )
+            amount_col, pay_col = st.columns(
+                [2, 0.7],
+                gap="small",
+                vertical_alignment="bottom",
+            )
 
             with amount_col:
-                if free:
-                    st.number_input(
-                        t.LABEL_AMOUNT,
-                        min_value=1,
-                        max_value=None,
-                        step=1,
-                        format="%d",
-                        key=amt_key,
-                        disabled=is_pending,
-                    )
-                else:
-                    st.number_input(
-                        t.LABEL_AMOUNT,
-                        min_value=1,
-                        max_value=max(1, remaining),
-                        step=1,
-                        format="%d",
-                        key=amt_key,
-                        disabled=is_pending,
-                    )
-                    if not is_pending:
-                        _sync_gift_entire_checkbox(
-                            amt_key=amt_key,
-                            entire_key=entire_key,
-                            remaining=remaining,
-                            declined_key=declined_key,
-                        )
-
-            if not free:
-
-                def on_gift_entire_toggle() -> None:
-                    if st.session_state.get(entire_key):
-                        st.session_state[amt_key] = int(remaining)
-                        st.session_state.pop(declined_key, None)
-                    else:
-                        amt = _amount_from_session(amt_key)
-                        if amt is not None and amt == int(remaining):
-                            st.session_state[declined_key] = True
-
-                with gift_col:
-                    st.checkbox(
-                        t.GIFT_FULL_REMAINING,
-                        key=entire_key,
-                        on_change=on_gift_entire_toggle,
-                        disabled=is_pending,
-                    )
+                st.number_input(
+                    t.LABEL_AMOUNT,
+                    min_value=1,
+                    max_value=None if free else max(1, remaining),
+                    step=1,
+                    format="%d",
+                    key=amt_key,
+                    disabled=is_pending,
+                )
 
             with pay_col:
                 if is_pending:
@@ -478,22 +405,17 @@ def _render_contribution_panel(
             donor_email = str(st.session_state.get(email_key, "")).strip()
             donor_message = str(st.session_state.get(msg_key, "")).strip()
 
+            amount = _amount_from_session(amt_key)
+            if amount is None:
+                st.error(t.ERR_AMOUNT_INVALID)
+                return
             if free:
-                amount = _amount_from_session(amt_key)
-                if amount is None or amount < 1:
+                if amount < 1:
                     st.error(t.ERR_AMOUNT_INVALID)
                     return
-            else:
-                if st.session_state.get(entire_key):
-                    amount = remaining
-                else:
-                    amount = _amount_from_session(amt_key)
-                    if amount is None:
-                        st.error(t.ERR_AMOUNT_INVALID)
-                        return
-                    if amount < 1 or amount > remaining:
-                        st.error(t.ERR_AMOUNT_RANGE)
-                        return
+            elif amount < 1 or amount > remaining:
+                st.error(t.ERR_AMOUNT_RANGE)
+                return
 
             if not donor_name:
                 st.error(t.ERR_NAME_REQUIRED)
