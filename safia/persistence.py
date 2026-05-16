@@ -10,6 +10,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import streamlit as st
+
 DbConnection = Any
 
 _CREATE_TABLE_SQL = """
@@ -62,6 +64,30 @@ def _row_to_mapping(row: Any) -> Mapping[str, object]:
     return dict(zip(keys, row, strict=True))
 
 
+def _confirmed_total_row(row: Any) -> tuple[str, int]:
+    """Parse ``(item_id, total)`` from SQLite tuples or PostgreSQL dict rows."""
+
+    if isinstance(row, Mapping):
+        return str(row["item_id"]), int(row["total_eur"])
+    return str(row[0]), int(row[1])
+
+
+@st.cache_resource
+def _postgres_pool(database_url: str) -> Any:
+    """Reuse connections to remote Postgres (avoids a full connect per Streamlit rerun)."""
+
+    from psycopg.rows import dict_row
+    from psycopg_pool import ConnectionPool
+
+    return ConnectionPool(
+        conninfo=database_url,
+        min_size=1,
+        max_size=4,
+        kwargs={"row_factory": dict_row},
+        open=True,
+    )
+
+
 @contextmanager
 def db_connect(
     *,
@@ -71,10 +97,7 @@ def db_connect(
     """Open a DB connection (PostgreSQL when ``database_url`` is set)."""
 
     if database_url:
-        import psycopg
-        from psycopg.rows import dict_row
-
-        with psycopg.connect(database_url, row_factory=dict_row) as conn:
+        with _postgres_pool(database_url).connection() as conn:
             yield conn
         return
 
@@ -99,11 +122,21 @@ def init_db(*, database_url: str | None, data_dir: Path) -> None:
             _commit(conn)
 
 
+def ensure_db_initialized(*, database_url: str | None, data_dir: Path) -> None:
+    """Run ``init_db`` once per app session (schema check is cheap but remote connect is not)."""
+
+    key = f"_safia_db_ready:{database_url or data_dir}"
+    if st.session_state.get(key):
+        return
+    init_db(database_url=database_url, data_dir=data_dir)
+    st.session_state[key] = True
+
+
 def confirmed_totals_by_item(conn: DbConnection) -> dict[str, int]:
     cur = conn.execute(
         _adapt_sql(
             """
-        SELECT item_id, COALESCE(SUM(amount_eur), 0)
+        SELECT item_id, COALESCE(SUM(amount_eur), 0) AS total_eur
         FROM contributions
         WHERE status = 'confirmed'
         GROUP BY item_id
@@ -111,7 +144,7 @@ def confirmed_totals_by_item(conn: DbConnection) -> dict[str, int]:
             conn,
         )
     )
-    return {str(row[0]): int(row[1]) for row in cur.fetchall()}
+    return dict(_confirmed_total_row(row) for row in cur.fetchall())
 
 
 def insert_pending_contribution(

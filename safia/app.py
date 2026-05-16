@@ -24,8 +24,8 @@ from safia.payments.stripe_checkout import (
 from safia.persistence import (
     confirmed_totals_by_item,
     db_connect,
+    ensure_db_initialized,
     get_contribution,
-    init_db,
     insert_pending_contribution,
 )
 from safia import texts as t
@@ -532,7 +532,7 @@ def run() -> None:
     settings = load_settings()
     site = load_site_content(settings.data_dir)
     items = load_wishlist_items(settings.data_dir)
-    init_db(database_url=settings.database_url, data_dir=settings.data_dir)
+    ensure_db_initialized(database_url=settings.database_url, data_dir=settings.data_dir)
 
     st.set_page_config(
         page_title=site.page_title,
