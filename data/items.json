@@ -22,11 +22,18 @@
       "image_url": "https://jollein.fr/cdn/shop/files/013_1_0001T.jpg?v=1752135869&width=1500"
     },
     {
-      "id": "sling",
-      "name": "Echarpe de portage (sling)",
-      "description": "Tout contre nous, bébé pourra découvrir le monde en se sentant bercé, rassuré et bien au chaud.",
-      "price_eur": 79,
-      "image_url": "https://www.neobulle.fr/cdn/shop/files/Sling_classique_terracotta1.jpg?v=1763986766&width=1200"
+      "id": "poussette",
+      "name": "Poussette",
+      "description": "Notre poussette de rêve pour lui faire découvrir le monde.",
+      "price_eur": 590,
+      "image_url": "https://i.imgur.com/njAobhU.png"
+    },
+    {
+      "id": "echarpe-portage",
+      "name": "Echarpe de portage",
+      "description": "Tout contre nous, elle pourra se sentir bercée, rassurée   et bien au chaud.",
+      "price_eur": 75,
+      "image_url": "https://i.imgur.com/Sv2MMQd.png"
     },
     {
       "id": "commode-a-langer",
@@ -34,6 +41,13 @@
       "description": "L’endroit où commenceront tant de petits rituels : pyjamas du soir, premiers sourires et couches à toute heure.",
       "price_eur": 195,
       "image_url": "https://i.imgur.com/F3PVq1T.png"
+    },
+    {
+      "id": "baignoire",
+      "name": "Kit de bain : baignoire, matelas à langer, trousse de toilette",
+      "description": "Tout ce qu’il faut pour ses premiers bains et ces petits rituels qui rythmeront nos journées.",
+      "price_eur": 159,
+      "image_url": "https://i.imgur.com/2BpwVtR.png"
     },
     {
       "id": "veilleuse",
