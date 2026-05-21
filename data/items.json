@@ -101,7 +101,7 @@
     {
       "id": "contribution-libre",
       "name": "Contribution libre",
-      "description": "Une contribution libre si vous préférez participer à votre façon à son arrivée.",
+      "description": "Pour les achats de dernière minute, parce qu'on n'aura forcément pas pensé à tout...",
       "price_eur": 0,
       "free_contribution": true,
       "image_url": "https://i.imgur.com/xc27VEa.png"
