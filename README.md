@@ -86,7 +86,7 @@ Email uses SMTP (`SMTP_*` in `.env.example`) or `[smtp]` in `.streamlit/secrets.
 
 Free Streamlit apps **sleep after about 12 hours** without real traffic. A simple HTTP ping (UptimeRobot, etc.) often returns **200** while the app is still asleep, so the monitor stays green but visitors see the sleep screen.
 
-This repo includes a **GitHub Actions** workflow (`.github/workflows/keepalive.yml`) that every **4 hours** opens your app in **headless Chromium**, clicks **“Yes, get this app back up!”** if needed, and checks that the page title from `data/site.json` appears.
+This repo includes a **GitHub Actions** workflow (`.github/workflows/keepalive.yml`) that every **4 hours** opens your app in **headless Chromium**, clicks **“Yes, get this app back up!”** if needed, and checks that the wishlist UI has loaded (intro text, **Contribuer** buttons, or the hero title inside Streamlit iframes).
 
 ### Setup (one time)
 
