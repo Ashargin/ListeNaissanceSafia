@@ -82,6 +82,31 @@ With `SAFIA_DEBUG=1`, **Simulate success / failure** links in the pending panel 
 
 Email uses SMTP (`SMTP_*` in `.env.example`) or `[smtp]` in `.streamlit/secrets.toml`. Set **`SAFIA_NOTIFY_EMAIL`** (or `smtp.notify_email` in secrets) to your address for owner alerts.
 
+## Keep the app awake (Streamlit Community Cloud)
+
+Free Streamlit apps **sleep after about 12 hours** without real traffic. A simple HTTP ping (UptimeRobot, etc.) often returns **200** while the app is still asleep, so the monitor stays green but visitors see the sleep screen.
+
+This repo includes a **GitHub Actions** workflow (`.github/workflows/keepalive.yml`) that every **4 hours** opens your app in **headless Chromium**, clicks **“Yes, get this app back up!”** if needed, and checks that the page title from `data/site.json` appears.
+
+### Setup (one time)
+
+1. Push this repository to GitHub (same repo connected to Streamlit Cloud).
+2. In the GitHub repo: **Settings → Secrets and variables → Actions → New repository secret**
+3. Name: **`SAFIA_APP_URL`** — value: your public app URL, e.g. `https://liste-naissance-safia.streamlit.app` (no trailing slash).
+4. **Actions** tab → run **“Keep Streamlit app awake”** once with **Run workflow** to test.
+5. Optional: keep UptimeRobot as a backup alert, but rely on this workflow to prevent sleep.
+
+Manual test locally:
+
+```bash
+pip install playwright
+playwright install chromium
+set SAFIA_APP_URL=https://your-app.streamlit.app
+python scripts/keepalive.py
+```
+
+**Note:** Streamlit may change sleep rules over time; this is a common community workaround, not a guaranteed SLA. For always-on hosting, use a VPS or paid platform.
+
 ## Layout
 
 | Path | Role |
@@ -94,4 +119,6 @@ Email uses SMTP (`SMTP_*` in `.env.example`) or `[smtp]` in `.streamlit/secrets.
 | `safia/payments/stripe_checkout.py` | Stripe Checkout sessions |
 | `safia/config.py` | Paths and flags from the environment |
 | `data/` | Public JSON catalog; optional local `app.db` when PostgreSQL is not configured |
+| `scripts/keepalive.py` | Browser wake-up for Streamlit Cloud (used by GitHub Actions) |
+| `.github/workflows/keepalive.yml` | Scheduled keep-alive (every 4 hours) |
 | `.streamlit/config.toml` | Streamlit defaults (non-secret) |

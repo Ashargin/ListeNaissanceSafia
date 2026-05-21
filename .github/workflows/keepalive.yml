@@ -1,0 +1,32 @@
+# Streamlit Community Cloud sleeps after ~12h without real browser traffic.
+# HTTP monitors (UptimeRobot) are not enough — this job opens the app in Chromium.
+name: Keep Streamlit app awake
+
+on:
+  schedule:
+    # Every 4 hours (stay well under the 12h inactivity window).
+    - cron: "0 */4 * * *"
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Wake / ping Streamlit app
+        env:
+          SAFIA_APP_URL: ${{ secrets.SAFIA_APP_URL }}
+        run: python scripts/keepalive.py
