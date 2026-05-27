@@ -21,31 +21,34 @@ LABEL_EMAIL = "E-mail"
 LABEL_MESSAGE = "Message"
 LABEL_AMOUNT = "Montant (€)"
 AMOUNT_PLACEHOLDER = ""
-BTN_PAY = "Payer"
+BTN_PAY = "Confirmer"
 BTN_PENDING = "En attente…"
 BTN_BACK_WISHLIST = "Retour à la liste"
 
-# Payment return / outcomes
-PAYMENT_NOT_CONFIRMED = "Ce paiement n'a pas pu être confirmé."
-CONFIRMING_PAYMENT = "Confirmation du paiement en cours…"
-LOADING_PAYMENT_RETURN = "Confirmation de votre paiement en cours, merci de patienter…"
-BTN_REFRESH = "Actualiser"
-INVALID_RETURN_LINK = "Ce lien de retour de paiement n'est pas valide."
-
 THANK_YOU_BODY = (
     "Merci beaucoup, {donor_name} ! "
-    "Votre contribution de {amount} pour « {item_name} » nous touche énormément 🥰\n\n"
-    "Vous devriez également recevoir un e-mail de confirmation dans votre boîte de réception."
+    "Votre générosité nous touche énormément 🥰\n\n"
+    "Vous devriez bientôt recevoir un e-mail de confirmation.\n\n"
+    "Pour finaliser votre contribution de {amount} pour « {item_name} », retrouvez ci-dessous les informations de paiement :"
 )
 
-PAYMENT_FAILED = (
-    "Le paiement n'a pas abouti 😓\n\nVous pouvez réessayer quand vous le souhaitez."
+PAYMENT_METHOD_PICK_LABEL = "Choisissez un moyen de paiement"
+PAYMENT_METHOD_LYDIA = "Lydia"
+PAYMENT_METHOD_WERO_PHONE = "Wero"
+PAYMENT_METHOD_WERO_QR = "Wero (QR code)"
+PAYMENT_METHOD_PAYPAL = "PayPal"
+PAYMENT_METHOD_IBAN = "Virement bancaire"
+PAYMENT_DETAIL_LYDIA_PHONE = "Numéro Lydia"
+PAYMENT_DETAIL_WERO_PHONE = "Numéro Wero"
+PAYMENT_DETAIL_WERO_QR = "QR code Wero"
+PAYMENT_DETAIL_PAYPAL_URL = "Lien PayPal"
+PAYMENT_DETAIL_IBAN = "IBAN"
+PAYMENT_DETAIL_BIC = "BIC (optionnel)"
+PAYMENT_PAYPAL_OPEN = "Lien PayPal"
+WARN_PAYMENT_METHODS_NOT_CONFIGURED = (
+    "Aucun moyen de paiement n'est configuré. Renseignez la section [payment] "
+    "dans .streamlit/secrets.toml (voir secrets.toml.example)."
 )
-
-# After « Payer »: stay on this tab, open Stripe in a new tab
-CHECKOUT_HANDOFF_LINE1 = "Vous pouvez fermer cet onglet en toute sécurité."
-CHECKOUT_HANDOFF_LINK_PREFIX = "Si le lien de paiement ne s'est pas ouvert, "
-CHECKOUT_HANDOFF_LINK_TEXT = "cliquez ici"
 
 # Validation
 ERR_AMOUNT_MIN = "Indiquez un montant entier d'au moins 1 €."
@@ -53,22 +56,9 @@ ERR_AMOUNT_RANGE = "Indiquez un montant entier entre 1 € et le solde restant."
 ERR_AMOUNT_INVALID = "Indiquez un montant entier en euros."
 ERR_NAME_REQUIRED = "Veuillez indiquer votre nom."
 ERR_EMAIL_INVALID = "Veuillez indiquer une adresse e-mail valide."
-ERR_STRIPE_NOT_CONFIGURED = (
-    "Les paiements ne sont pas configurés. Définissez STRIPE_SECRET_KEY dans l'environnement "
-    "ou [stripe] dans .streamlit/secrets.toml."
-)
-ERR_STRIPE_CHECKOUT = "Impossible d'ouvrir le paiement Stripe : {detail}"
 
 # App chrome
 DEBUG_MODE = "Mode débogage (`SAFIA_DEBUG`)"
-WARN_STRIPE_NOT_CONFIGURED = (
-    "Stripe n'est pas configuré — le bouton Payer ne fonctionnera pas tant que "
-    "STRIPE_SECRET_KEY n'est pas définie."
-)
-
-# Pending payment fallback link
-PENDING_LINK_PREFIX = "Si le lien ne s'ouvre pas, "
-PENDING_LINK_TEXT = "cliquez ici"
 
 # Dev helpers
 DEV_SIMULATE_SUCCESS = "Simuler succès"
@@ -108,6 +98,3 @@ CAPTION_NOTIFY_EMAIL = (
     "Définissez SAFIA_NOTIFY_EMAIL (ou smtp.notify_email dans les secrets) "
     "pour recevoir les alertes."
 )
-
-# Stripe (shown to users via st.error)
-STRIPE_AMOUNT_MIN = "Le montant minimum est de 1 €."

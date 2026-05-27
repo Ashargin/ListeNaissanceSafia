@@ -60,25 +60,35 @@ set SAFIA_DATABASE_URL=postgresql://...
 python scripts/migrate_sqlite_to_postgres.py
 ```
 
-## Payments (Stripe) and email
+## Payments and email
 
-Payments use **Stripe Checkout**. Clicking **Pay** creates a checkout session and redirects you to Stripe in the **same tab**. After payment, Stripe sends you back to the wishlist with a thank-you message.
+Clicking **Confirmer** records a **payment intent** immediately in Safia, shows a success page in the same tab, and lists the payment methods you configure (Wero, PayPal, IBAN).
 
-### Environment
+### Payment methods (secrets)
+
+In **App settings → Secrets** (see `.streamlit/secrets.toml.example`), enable any combination under `[payment]`:
+
+| Key | Purpose |
+|-----|---------|
+| `wero_phone` | Wero alias (mobile number) |
+| `wero_qr_url` | URL of your Wero QR image, **or** place `data/wero-qr.png` in the repo |
+| `paypal_url` | PayPal.me base link (amount in EUR is appended, e.g. `…/25EUR`) |
+| `iban` | Bank transfer IBAN |
+| `bic` | BIC (optional) |
+| `account_holder` | Account name (optional) |
+
+Equivalent env vars: `SAFIA_WERO_PHONE`, `SAFIA_WERO_QR_URL`, `SAFIA_PAYPAL_URL`, `SAFIA_IBAN`, `SAFIA_BIC`, `SAFIA_ACCOUNT_HOLDER`.
 
 | Variable | Example |
 |----------|---------|
 | `SAFIA_APP_URL` | `https://liste-naissance-safia.streamlit.app` |
-| `STRIPE_SECRET_KEY` | `sk_test_…` from the [Stripe Dashboard](https://dashboard.stripe.com/test/apikeys) |
 
-On **Streamlit Community Cloud**, set these in **App settings → Secrets** (see `.streamlit/secrets.toml.example`). Locally, use `.env` or export variables before `streamlit run`.
+On **Streamlit Community Cloud**, set secrets as above. Locally, use `.streamlit/secrets.toml` or `.env`.
 
-After payment, Stripe redirects back to your app. Safia verifies the session, confirms the gift in SQLite, updates the progress bar, and sends email:
+When the donor clicks **Pay**, Safia confirms the contribution in the database, updates the progress bar, and sends email:
 
 - **Donor** — thank-you message to the email they entered on the form
 - **You** — alert with donor name, item, amount, and their optional message
-
-With `SAFIA_DEBUG=1`, **Simulate success / failure** links in the pending panel still work for testing without Stripe.
 
 Email uses SMTP (`SMTP_*` in `.env.example`) or `[smtp]` in `.streamlit/secrets.toml`. Set **`SAFIA_NOTIFY_EMAIL`** (or `smtp.notify_email` in secrets) to your address for owner alerts.
 
@@ -116,7 +126,6 @@ python scripts/keepalive.py
 | `safia/content.py` | Load `data/site.json` and `data/items.json` |
 | `safia/persistence.py` | PostgreSQL or SQLite totals and contribution rows |
 | `safia/emailer.py` | Thank-you email |
-| `safia/payments/stripe_checkout.py` | Stripe Checkout sessions |
 | `safia/config.py` | Paths and flags from the environment |
 | `data/` | Public JSON catalog; optional local `app.db` when PostgreSQL is not configured |
 | `scripts/keepalive.py` | Browser wake-up for Streamlit Cloud (used by GitHub Actions) |

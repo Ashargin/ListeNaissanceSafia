@@ -21,7 +21,6 @@ from safia.models import WishlistItem
 from safia.persistence import (
     DbConnection,
     confirm_contribution,
-    fail_contribution,
     get_contribution,
 )
 
@@ -117,27 +116,3 @@ def finalize_payment_success(
     clear_item_panel_state(item_id)
     return thank_you_payload(row, item_name)
 
-
-def finalize_payment_failure(
-    conn: DbConnection,
-    contribution_id: str,
-) -> bool:
-    """Mark contribution failed and close panel state. Idempotent."""
-
-    row = get_contribution(conn, contribution_id)
-    if row is None:
-        return False
-
-    item_id = str(row["item_id"])
-    status = str(row["status"])
-
-    if status == "failed":
-        clear_item_panel_state(item_id)
-        return True
-
-    if status != "pending":
-        return False
-
-    fail_contribution(conn, contribution_id)
-    clear_item_panel_state(item_id)
-    return True

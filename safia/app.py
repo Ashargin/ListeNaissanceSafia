@@ -2,34 +2,21 @@
 
 from __future__ import annotations
 
-import json
-from contextlib import nullcontext
-
-import html
-
 import streamlit as st
 
+from safia import texts as t
 from safia.config import Settings, load_settings
+from safia.payment_options import load_payment_options, render_payment_methods
 from safia.content import load_site_content, load_wishlist_items
 from safia.models import WishlistItem, format_eur
-import stripe
-
-from safia.payments.return_url import PaymentOutcome, build_return_urls, parse_payment_return, query_param_first
-from safia.payments.service import finalize_payment_failure, finalize_payment_success
-from safia.payments.stripe_checkout import (
-    create_checkout_session,
-    stripe_configured,
-    verify_checkout_return,
-)
+from safia.payments.service import finalize_payment_success
 from safia.persistence import (
     db_connect,
     ensure_db_initialized,
     get_cached_confirmed_totals,
-    get_contribution,
     insert_pending_contribution,
     invalidate_confirmed_totals,
 )
-from safia import texts as t
 from safia.ui import (
     inject_global_css,
     render_hero,
@@ -78,131 +65,12 @@ def _amount_from_session(amt_key: str) -> int | None:
     return None
 
 
-def _is_payment_return() -> bool:
-    """True when the URL is a Stripe or generic payment return (show loading UI early)."""
-
-    if query_param_first(st.query_params, "session_id") and query_param_first(
-        st.query_params, "contribution_id"
-    ):
-        return True
-    return parse_payment_return(st.query_params) is not None
-
-
-def _clear_payment_query_params() -> None:
-    for key in (
-        "payment_status",
-        "payment_result",
-        "contribution_id",
-        "session_id",
-        "checkout_popup",
-        "thank_you",
-    ):
-        if key in st.query_params:
-            del st.query_params[key]
-
-
-def _render_checkout_new_tab_handoff(url: str) -> None:
-    """Open Stripe Checkout in a new tab and show a short notice on this tab."""
-
-    render_outcome_top_spacer()
-    safe_href = html.escape(url, quote=True)
-    line1 = html.escape(t.CHECKOUT_HANDOFF_LINE1)
-    prefix = html.escape(t.CHECKOUT_HANDOFF_LINK_PREFIX)
-    link_label = html.escape(t.CHECKOUT_HANDOFF_LINK_TEXT)
-    st.markdown(
-        f'<div class="safia-checkout-handoff">'
-        f'<p style="margin:0 0 0.75rem 0;line-height:1.55;">{line1}</p>'
-        f'<p style="margin:0;line-height:1.55;">{prefix}'
-        f'<a href="{safe_href}" target="_blank" rel="noopener noreferrer">{link_label}</a>'
-        f"</p></div>",
-        unsafe_allow_html=True,
-    )
-    js_url = json.dumps(url)
-    st.iframe(
-        f"<script>try{{var u={js_url};var t=window.top||window;if(u)t.open(u,"
-        f'"_blank","noopener,noreferrer");}}catch(e){{}}</script>',
-        height=1,
-    )
-
-
-def _handle_payment_return(
-    *,
-    items: list[WishlistItem],
-    settings: Settings,
-    debug: bool,
-) -> bool:
-    """Process Stripe or generic return URLs after checkout."""
-
-    contribution_id = query_param_first(st.query_params, "contribution_id")
-    session_id = query_param_first(st.query_params, "session_id")
-
-    if session_id and contribution_id:
-        stripe_outcome = verify_checkout_return(session_id, contribution_id)
-        if stripe_outcome is not None:
-            with db_connect(
-                database_url=settings.database_url, data_dir=settings.data_dir
-            ) as conn:
-                if stripe_outcome == PaymentOutcome.SUCCESS:
-                    payload = finalize_payment_success(
-                        conn,
-                        contribution_id,
-                        items=items,
-                        debug=debug,
-                    )
-                    _clear_payment_query_params()
-                    if payload is None:
-                        st.warning(t.PAYMENT_NOT_CONFIRMED)
-                        return True
-                    invalidate_confirmed_totals()
-                    st.session_state["thank_you"] = payload
-                    st.rerun()
-
-                if finalize_payment_failure(conn, contribution_id):
-                    _clear_payment_query_params()
-                    st.session_state["payment_failed"] = True
-                    st.rerun()
-
-        st.markdown(t.CONFIRMING_PAYMENT)
-        if st.button(t.BTN_REFRESH, key="payment_return_refresh"):
-            st.rerun()
-        return True
-
-    parsed = parse_payment_return(st.query_params)
-    if parsed is None:
-        return False
-
-    with db_connect(database_url=settings.database_url, data_dir=settings.data_dir) as conn:
-        if parsed.outcome == PaymentOutcome.SUCCESS:
-            payload = finalize_payment_success(
-                conn,
-                parsed.contribution_id,
-                items=items,
-                debug=debug,
-            )
-            _clear_payment_query_params()
-            if payload is None:
-                st.warning(t.PAYMENT_NOT_CONFIRMED)
-                return True
-            invalidate_confirmed_totals()
-            st.session_state["thank_you"] = payload
-            st.rerun()
-
-        if finalize_payment_failure(conn, parsed.contribution_id):
-            _clear_payment_query_params()
-            st.session_state["payment_failed"] = True
-            st.rerun()
-
-    _clear_payment_query_params()
-    st.warning(t.INVALID_RETURN_LINK)
-    return True
-
-
 def _render_thank_you(
     *,
     donor_name: str,
     amount_eur: int,
     item_name: str,
-    show_back: bool,
+    data_dir,
 ) -> None:
     render_outcome_top_spacer()
     render_success_message(
@@ -212,61 +80,15 @@ def _render_thank_you(
             item_name=item_name,
         )
     )
-    if show_back:
-        if st.button(t.BTN_BACK_WISHLIST, type="primary"):
-            st.session_state.pop("thank_you", None)
-            st.rerun()
+    render_payment_methods(
+        options=load_payment_options(data_dir=data_dir),
+        amount_eur=amount_eur,
+        donor_name=donor_name,
+        item_name=item_name,
+    )
 
-
-def _render_payment_failed() -> None:
-    render_outcome_top_spacer()
-    st.error(t.PAYMENT_FAILED)
     if st.button(t.BTN_BACK_WISHLIST, type="primary"):
-        st.session_state.pop("payment_failed", None)
-        st.rerun()
-
-
-@st.fragment(run_every=2)
-def _poll_pending_payment(
-    contribution_id: str,
-    *,
-    settings: Settings,
-    items: list[WishlistItem],
-    debug: bool,
-) -> None:
-    """While the panel shows pending, watch the DB for a return-URL or webhook update."""
-
-    with db_connect(database_url=settings.database_url, data_dir=settings.data_dir) as conn:
-        row = get_contribution(conn, contribution_id)
-    if row is None:
-        return
-
-    status = str(row["status"])
-    if status == "pending":
-        return
-
-    if status == "confirmed":
-        with db_connect(
-            database_url=settings.database_url, data_dir=settings.data_dir
-        ) as conn:
-            payload = finalize_payment_success(
-                conn,
-                contribution_id,
-                items=items,
-                debug=debug,
-            )
-        if payload:
-            invalidate_confirmed_totals()
-            st.session_state["thank_you"] = payload
-            st.rerun()
-        return
-
-    if status == "failed":
-        with db_connect(
-            database_url=settings.database_url, data_dir=settings.data_dir
-        ) as conn:
-            finalize_payment_failure(conn, contribution_id)
-        st.session_state["payment_failed"] = True
+        st.session_state.pop("thank_you", None)
         st.rerun()
 
 
@@ -278,14 +100,12 @@ def _render_contribution_panel(
     item: WishlistItem,
     contributed_eur: int,
     settings: Settings,
-    app_base_url: str,
     debug: bool,
     items: list[WishlistItem],
 ) -> None:
     free = item.free_contribution
     remaining = max(0, item.price_eur - contributed_eur)
     open_key = f"open_form_{item.id}"
-    pending_key = f"pending_payment_{item.id}"
     amt_key = f"amt_{item.id}"
 
     with info_parent:
@@ -296,7 +116,6 @@ def _render_contribution_panel(
         if panel_open:
             if st.button(t.BTN_CLOSE, key=f"close_contrib_{item.id}"):
                 st.session_state.pop(open_key, None)
-                st.session_state.pop(pending_key, None)
                 st.rerun()
         elif st.button(t.BTN_CONTRIBUTE, key=f"toggle_contrib_{item.id}"):
             st.session_state[open_key] = True
@@ -307,17 +126,13 @@ def _render_contribution_panel(
 
     with panel_parent:
         with st.container(border=True):
-            pending = st.session_state.get(pending_key)
-            is_pending = pending is not None
-
-            if not is_pending:
-                _ensure_amount_integer_field(amt_key, default=1)
-                if not free:
-                    cur = int(st.session_state[amt_key])
-                    st.session_state[amt_key] = max(1, min(cur, remaining))
-                else:
-                    cur = int(st.session_state[amt_key])
-                    st.session_state[amt_key] = max(1, cur)
+            _ensure_amount_integer_field(amt_key, default=1)
+            if not free:
+                cur = int(st.session_state[amt_key])
+                st.session_state[amt_key] = max(1, min(cur, remaining))
+            else:
+                cur = int(st.session_state[amt_key])
+                st.session_state[amt_key] = max(1, cur)
 
             name_key = f"name_{item.id}"
             email_key = f"email_{item.id}"
@@ -325,10 +140,10 @@ def _render_contribution_panel(
 
             name_col, email_col = st.columns(2)
             with name_col:
-                st.text_input(t.LABEL_NAME, key=name_key, disabled=is_pending)
+                st.text_input(t.LABEL_NAME, key=name_key)
             with email_col:
-                st.text_input(t.LABEL_EMAIL, key=email_key, disabled=is_pending)
-            st.text_area(t.LABEL_MESSAGE, height=72, key=msg_key, disabled=is_pending)
+                st.text_input(t.LABEL_EMAIL, key=email_key)
+            st.text_area(t.LABEL_MESSAGE, height=72, key=msg_key)
 
             amount_col, pay_col = st.columns(
                 [2, 0.7],
@@ -344,59 +159,14 @@ def _render_contribution_panel(
                     step=1,
                     format="%d",
                     key=amt_key,
-                    disabled=is_pending,
                 )
-
             with pay_col:
-                if is_pending:
-                    btn_col, spin_col = st.columns([5, 1], gap="small")
-                    with btn_col:
-                        st.button(
-                            t.BTN_PENDING,
-                            disabled=True,
-                            type="secondary",
-                            width="stretch",
-                            key=f"pending_pay_{item.id}",
-                        )
-                    with spin_col:
-                        st.markdown(
-                            '<div style="display:block;margin-top:0.55rem;width:16px;height:16px;'
-                            "border:2px solid #ddd;border-top-color:#888;border-radius:50%;"
-                            'animation:safiaSpin 0.7s linear infinite;"></div>',
-                            unsafe_allow_html=True,
-                        )
-                    pay_clicked = False
-                else:
-                    pay_clicked = st.button(
-                        t.BTN_PAY,
-                        type="primary",
-                        key=f"pay_{item.id}",
-                        width="stretch",
-                    )
-
-            if is_pending:
-                payment_url = str(pending["url"])
-                contribution_id = str(pending["contribution_id"])
-                safe_href = html.escape(payment_url, quote=True)
-                st.markdown(
-                    '<p style="font-size:0.8rem;color:#666;margin:0.35rem 0 0 0;">'
-                    f"{t.PENDING_LINK_PREFIX}"
-                    f'<a href="{safe_href}">{t.PENDING_LINK_TEXT}</a>.</p>',
-                    unsafe_allow_html=True,
+                pay_clicked = st.button(
+                    t.BTN_PAY,
+                    type="primary",
+                    key=f"pay_{item.id}",
+                    width="stretch",
                 )
-                _poll_pending_payment(
-                    contribution_id,
-                    settings=settings,
-                    items=items,
-                    debug=debug,
-                )
-                if debug:
-                    success_url, fail_url = build_return_urls(app_base_url, contribution_id)
-                    st.caption(
-                        f"[Dev] [{t.DEV_SIMULATE_SUCCESS}]({success_url}) · "
-                        f"[{t.DEV_SIMULATE_FAILURE}]({fail_url})"
-                    )
-                return
 
             if not pay_clicked:
                 return
@@ -423,9 +193,6 @@ def _render_contribution_panel(
             if "@" not in donor_email or "." not in donor_email.split("@")[-1]:
                 st.error(t.ERR_EMAIL_INVALID)
                 return
-            if not stripe_configured():
-                st.error(t.ERR_STRIPE_NOT_CONFIGURED)
-                return
 
             with db_connect(
                 database_url=settings.database_url, data_dir=settings.data_dir
@@ -438,29 +205,20 @@ def _render_contribution_panel(
                     donor_email=donor_email,
                     donor_message=donor_message,
                 )
-
-            try:
-                payment_url = create_checkout_session(
-                    contribution_id=contribution_id,
-                    item_id=item.id,
-                    item_name=item.name,
-                    amount_eur=amount,
-                    donor_email=donor_email,
-                    app_base_url=app_base_url,
+                payload = finalize_payment_success(
+                    conn,
+                    contribution_id,
+                    items=items,
+                    debug=debug,
                 )
-            except ValueError as exc:
-                st.error(str(exc))
-                return
-            except stripe.StripeError as exc:
-                detail = getattr(exc, "user_message", None) or str(exc)
-                st.error(f"Could not start Stripe checkout: {detail}")
-                if debug:
-                    st.exception(exc)
+
+            if payload is None:
+                st.error("Impossible d'enregistrer votre contribution pour le moment.")
                 return
 
             st.session_state.pop(open_key, None)
-            st.session_state.pop(pending_key, None)
-            st.session_state["checkout_handoff_url"] = payment_url
+            st.session_state["thank_you"] = payload
+            invalidate_confirmed_totals()
             st.rerun()
 
 
@@ -476,30 +234,11 @@ def run() -> None:
     )
     inject_global_css()
 
-    payment_return = _is_payment_return()
-    if payment_return:
-        render_outcome_top_spacer()
-
-    load_ctx = st.spinner(t.LOADING_PAYMENT_RETURN) if payment_return else nullcontext()
-    with load_ctx:
-        items = load_wishlist_items(settings.data_dir)
-        ensure_db_initialized(database_url=settings.database_url, data_dir=settings.data_dir)
-        if _handle_payment_return(items=items, settings=settings, debug=settings.debug):
-            return
-
-    handoff_url = st.session_state.pop("checkout_handoff_url", None)
-    if handoff_url:
-        _render_checkout_new_tab_handoff(handoff_url)
-        st.stop()
+    items = load_wishlist_items(settings.data_dir)
+    ensure_db_initialized(database_url=settings.database_url, data_dir=settings.data_dir)
 
     if settings.debug:
         st.caption(t.DEBUG_MODE)
-    if not stripe_configured():
-        st.warning(t.WARN_STRIPE_NOT_CONFIGURED)
-
-    if st.session_state.get("payment_failed"):
-        _render_payment_failed()
-        return
 
     thank = st.session_state.get("thank_you")
     if isinstance(thank, dict) and thank:
@@ -507,7 +246,7 @@ def run() -> None:
             donor_name=str(thank["donor_name"]),
             amount_eur=int(thank["amount_eur"]),
             item_name=str(thank["item_name"]),
-            show_back=True,
+            data_dir=settings.data_dir,
         )
         return
 
@@ -532,7 +271,6 @@ def run() -> None:
                     item=it,
                     contributed_eur=contrib,
                     settings=settings,
-                    app_base_url=settings.app_base_url,
                     debug=settings.debug,
                     items=items,
                 )

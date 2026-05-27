@@ -88,6 +88,15 @@ def inject_global_css() -> None:
           div[data-testid="stMarkdownContainer"]:has(.safia-success-banner) {
             overflow: visible !important;
           }
+          div.element-container:has(.safia-success-banner) {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          .safia-success-banner {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+          }
           /* Checkout handoff: same readable width as intro, avoid header clipping */
           div[data-testid="stMarkdown"]:has(.safia-checkout-handoff),
           div[data-testid="stMarkdownContainer"]:has(.safia-checkout-handoff) {
@@ -154,7 +163,7 @@ def render_success_message(message: str) -> None:
         f"""
         <div class="safia-success-banner" role="alert" style="
           padding: 1rem 1.25rem;
-          margin: 0 0 1rem 0;
+          margin: 0 0 0.35rem 0;
           border-radius: 0.5rem;
           border: 1px solid rgb(195, 230, 203);
           background-color: rgb(212, 237, 218);
