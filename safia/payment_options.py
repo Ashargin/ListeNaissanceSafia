@@ -16,8 +16,7 @@ from safia.models import format_eur
 
 @dataclass(frozen=True, slots=True)
 class PaymentOptions:
-    lydia_phone: str | None
-    wero_phone: str | None
+    phone_number: str | None
     wero_qr_url: str | None
     paypal_url: str | None
     iban: str | None
@@ -26,8 +25,7 @@ class PaymentOptions:
 
     def has_any(self) -> bool:
         return bool(
-            self.lydia_phone
-            or self.wero_phone
+            self.phone_number
             or self.wero_qr_url
             or self.paypal_url
             or self.iban
@@ -50,6 +48,18 @@ def _env_or_payment_secret(env_name: str, secret_key: str) -> str | None:
     return _secret_str("payment", secret_key)
 
 
+def _resolve_phone_number() -> str | None:
+    for env_name, secret_key in (
+        ("SAFIA_PHONE_NUMBER", "phone_number"),
+        ("SAFIA_LYDIA_PHONE", "lydia_phone"),
+        ("SAFIA_WERO_PHONE", "wero_phone"),
+    ):
+        value = _env_or_payment_secret(env_name, secret_key)
+        if value:
+            return value
+    return None
+
+
 def _resolve_wero_qr_url(data_dir: Path | None) -> str | None:
     url = _env_or_payment_secret("SAFIA_WERO_QR_URL", "wero_qr_url")
     if url:
@@ -65,8 +75,7 @@ def _resolve_wero_qr_url(data_dir: Path | None) -> str | None:
 
 def load_payment_options(*, data_dir: Path | None = None) -> PaymentOptions:
     return PaymentOptions(
-        lydia_phone=_env_or_payment_secret("SAFIA_LYDIA_PHONE", "lydia_phone"),
-        wero_phone=_env_or_payment_secret("SAFIA_WERO_PHONE", "wero_phone"),
+        phone_number=_resolve_phone_number(),
         wero_qr_url=_resolve_wero_qr_url(data_dir),
         paypal_url=_env_or_payment_secret("SAFIA_PAYPAL_URL", "paypal_url"),
         iban=_env_or_payment_secret("SAFIA_IBAN", "iban"),
@@ -79,23 +88,6 @@ def payment_reference(*, donor_name: str, item_name: str, amount_eur: int) -> st
     return f"{donor_name} — {item_name} — {format_eur(amount_eur)}"
 
 
-def _render_payment_detail(
-    key: str,
-    *,
-    options: PaymentOptions,
-    amount_eur: int,
-) -> None:
-    if key == "lydia_phone" and options.lydia_phone:
-        st.write(f"Envoyer au **{options.lydia_phone}**")
-    elif key == "wero_phone" and options.wero_phone:
-        st.write(f"Envoyer au **{options.wero_phone}**")
-    elif key == "paypal" and options.paypal_url:
-        link = paypal_link(options.paypal_url, amount_eur)
-        st.link_button(t.PAYMENT_PAYPAL_OPEN, link, type="primary")
-    elif key == "iban" and options.iban:
-        st.write(f"IBAN : **{options.iban}**")
-
-
 def paypal_link(base_url: str, amount_eur: int) -> str:
     """Build a PayPal.me link with amount when the base URL has no amount segment."""
 
@@ -105,6 +97,69 @@ def paypal_link(base_url: str, amount_eur: int) -> str:
     if url.lower().endswith("eur"):
         return url
     return f"{url}/{amount_eur}EUR"
+
+
+def format_donor_email_payment_instructions(
+    options: PaymentOptions,
+    *,
+    amount_eur: int,
+) -> tuple[str, str]:
+    """
+    Build the payment reminder block for donor emails.
+
+    Returns ``(plain_text, html_fragment)``. Either may be empty if no methods are configured.
+    """
+
+    lines_plain: list[str] = []
+    lines_html: list[str] = []
+
+    if options.iban:
+        lines_plain.append(f"- Virement bancaire à l'IBAN : {options.iban}")
+        lines_html.append(
+            f"- Virement bancaire à l'IBAN : {html.escape(options.iban)}"
+        )
+
+    if options.paypal_url:
+        link = paypal_link(options.paypal_url, amount_eur)
+        lines_plain.append(f"- PayPal avec ce lien : {link}")
+        safe_link = html.escape(link, quote=True)
+        lines_html.append(
+            f'- PayPal avec <a href="{safe_link}">ce lien</a>'
+        )
+
+    if options.phone_number:
+        lines_plain.append(f"- Lydia ou Wero au {options.phone_number}")
+        lines_html.append(
+            f"- Lydia ou Wero au {html.escape(options.phone_number)}"
+        )
+
+    if not lines_plain:
+        return ("", "")
+
+    intro = t.EMAIL_PAYMENT_INSTRUCTIONS_INTRO
+    reminder = t.EMAIL_PAYMENT_NAME_REMINDER
+    plain = f"{intro}\n" + "\n".join(lines_plain) + f"\n{reminder}"
+    html_block = (
+        f"<p>{html.escape(intro)}<br>"
+        + "<br>".join(lines_html)
+        + f"<br>{html.escape(reminder)}</p>"
+    )
+    return (plain, html_block)
+
+
+def _render_payment_detail(
+    key: str,
+    *,
+    options: PaymentOptions,
+    amount_eur: int,
+) -> None:
+    if key in {"lydia", "wero"} and options.phone_number:
+        st.write(f"Envoyer au **{options.phone_number}**")
+    elif key == "paypal" and options.paypal_url:
+        link = paypal_link(options.paypal_url, amount_eur)
+        st.link_button(t.PAYMENT_PAYPAL_OPEN, link, type="primary")
+    elif key == "iban" and options.iban:
+        st.write(f"IBAN : **{options.iban}**")
 
 
 def render_payment_methods(
@@ -119,15 +174,14 @@ def render_payment_methods(
         return
 
     methods: list[tuple[str, str]] = []
-    # Fixed order: Lydia → Wero → PayPal → IBAN
-    if options.lydia_phone:
-        methods.append(("lydia_phone", f"🟣 {t.PAYMENT_METHOD_LYDIA}"))
-    if options.wero_phone:
-        methods.append(("wero_phone", f"💠 {t.PAYMENT_METHOD_WERO_PHONE}"))
-    if options.paypal_url:
-        methods.append(("paypal", f"🟦 {t.PAYMENT_METHOD_PAYPAL}"))
+    # Fixed order: IBAN → PayPal → Lydia → Wero
     if options.iban:
         methods.append(("iban", f"🏦 {t.PAYMENT_METHOD_IBAN}"))
+    if options.paypal_url:
+        methods.append(("paypal", f"🟦 {t.PAYMENT_METHOD_PAYPAL}"))
+    if options.phone_number:
+        methods.append(("lydia", f"🟣 {t.PAYMENT_METHOD_LYDIA}"))
+        methods.append(("wero", f"💠 {t.PAYMENT_METHOD_WERO_PHONE}"))
 
     selected_key = "payment_method_selected"
     option_keys = [key for key, _ in methods]

@@ -18,6 +18,7 @@ from safia.texts import (
     WARN_THANK_YOU_EMAIL_FAILED,
 )
 from safia.models import WishlistItem
+from safia.payment_options import format_donor_email_payment_instructions, load_payment_options
 from safia.persistence import (
     DbConnection,
     confirm_contribution,
@@ -39,12 +40,20 @@ def _send_payment_emails(row: dict[str, Any], *, item_name: str, debug: bool) ->
     amount_eur = int(row["amount_eur"])
     donor_message = str(row.get("donor_message") or "")
 
+    payment_options = load_payment_options()
+    instructions_plain, instructions_html = format_donor_email_payment_instructions(
+        payment_options,
+        amount_eur=amount_eur,
+    )
+
     try:
         send_contribution_thank_you(
             to_email=donor_email,
             donor_name=donor_name,
             item_name=item_name,
             amount_eur=amount_eur,
+            payment_instructions_plain=instructions_plain,
+            payment_instructions_html=instructions_html,
         )
     except Exception as exc:  # noqa: BLE001
         if debug:

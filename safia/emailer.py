@@ -16,6 +16,7 @@ from safia.texts import (
     EMAIL_OWNER_BODY,
     EMAIL_OWNER_SUBJECT,
     EMAIL_THANK_YOU_BODY,
+    EMAIL_THANK_YOU_BODY_HTML,
     EMAIL_THANK_YOU_SUBJECT,
 )
 
@@ -81,7 +82,13 @@ def notify_email_configured() -> bool:
     return owner_notify_email() is not None
 
 
-def _send_email(*, to_email: str, subject: str, body: str) -> None:
+def _send_email(
+    *,
+    to_email: str,
+    subject: str,
+    body: str,
+    body_html: str | None = None,
+) -> None:
     cfg = _smtp_settings()
     if not cfg or not cfg.get("from_email"):
         raise RuntimeError("Email is not configured (set SMTP_* env vars or [smtp] in .streamlit/secrets.toml).")
@@ -91,6 +98,8 @@ def _send_email(*, to_email: str, subject: str, body: str) -> None:
     msg["From"] = cfg["from_email"]
     msg["To"] = to_email
     msg.set_content(body)
+    if body_html:
+        msg.add_alternative(body_html, subtype="html")
 
     host = cfg["host"]
     port = int(cfg["port"])
@@ -121,16 +130,39 @@ def send_contribution_thank_you(
     donor_name: str,
     item_name: str,
     amount_eur: int,
+    payment_instructions_plain: str = "",
+    payment_instructions_html: str = "",
 ) -> None:
     """Send thank-you email to the donor. Raises on failure."""
 
     amount = format_eur(amount_eur)
+    if payment_instructions_plain.strip():
+        plain_block = payment_instructions_plain.strip()
+        html_block = payment_instructions_html or (
+            f"<p>{payment_instructions_plain.replace(chr(10), '<br>')}</p>"
+        )
+    else:
+        plain_block = ""
+        html_block = ""
+
     body = EMAIL_THANK_YOU_BODY.format(
         donor_name=donor_name,
         amount=amount,
         item_name=item_name,
+        payment_instructions=plain_block,
     )
-    _send_email(to_email=to_email, subject=EMAIL_THANK_YOU_SUBJECT, body=body)
+    body_html = EMAIL_THANK_YOU_BODY_HTML.format(
+        donor_name=donor_name,
+        amount=amount,
+        item_name=item_name,
+        payment_instructions=html_block,
+    )
+    _send_email(
+        to_email=to_email,
+        subject=EMAIL_THANK_YOU_SUBJECT,
+        body=body,
+        body_html=body_html if html_block else None,
+    )
 
 
 def send_contribution_owner_notification(

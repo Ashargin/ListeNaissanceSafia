@@ -148,14 +148,15 @@ def render_outcome_top_spacer() -> None:
 
 
 def render_success_message(message: str) -> None:
-    """Green success block; ``\\n\\n`` separates paragraphs inside one banner."""
+    """Green success block; ``\\n\\n`` = paragraph gap, ``\\n`` = line break."""
 
     paragraphs = [p.strip() for p in message.strip().split("\n\n") if p.strip()]
     parts: list[str] = []
     for index, paragraph in enumerate(paragraphs):
         margin = "0" if index == len(paragraphs) - 1 else "0 0 0.65em 0"
+        body = html.escape(paragraph).replace("\n", "<br>")
         parts.append(
-            f"<p style='margin:{margin};line-height:1.5;'>{html.escape(paragraph)}</p>"
+            f"<p style='margin:{margin};line-height:1.5;'>{body}</p>"
         )
     body = "".join(parts)
 

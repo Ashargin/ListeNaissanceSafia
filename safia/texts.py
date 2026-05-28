@@ -29,7 +29,8 @@ THANK_YOU_BODY = (
     "Merci beaucoup, {donor_name} ! "
     "Votre générosité nous touche énormément 🥰\n\n"
     "Vous devriez bientôt recevoir un e-mail de confirmation.\n\n"
-    "Pour finaliser votre contribution de {amount} pour « {item_name} », retrouvez ci-dessous les informations de paiement :"
+    "Pour finaliser votre contribution de {amount} pour « {item_name} », retrouvez ci-dessous les informations de paiement.\n"
+    "N'oubliez pas d'indiquer votre nom dans le libellé du paiement pour qu'on puisse vous dire merci 😘"
 )
 
 PAYMENT_METHOD_PICK_LABEL = "Choisissez un moyen de paiement"
@@ -66,12 +67,28 @@ DEV_SIMULATE_FAILURE = "Simuler échec"
 
 # Email — donor
 EMAIL_THANK_YOU_SUBJECT = "Merci pour votre cadeau 🎁"
+EMAIL_PAYMENT_INSTRUCTIONS_INTRO = (
+    "Si vous n'avez pas encore finalisé le paiement, vous pouvez le faire via :"
+)
+EMAIL_PAYMENT_NAME_REMINDER = (
+    "N'oubliez pas d'indiquer votre nom dans le libellé du paiement "
+    "pour qu'on puisse vous dire merci 😘"
+)
 EMAIL_THANK_YOU_BODY = (
     "Bonjour {donor_name},\n\n"
     "Merci infiniment pour votre contribution de {amount} pour « {item_name} » 🥰\n"
     "Votre générosité compte énormément pour nous.\n\n"
+    "{payment_instructions}\n\n"
     "Avec toute notre affection,\n"
     "Loïc et Meriem\n"
+)
+EMAIL_THANK_YOU_BODY_HTML = (
+    "<p>Bonjour {donor_name},</p>"
+    "<p>Merci infiniment pour votre contribution de {amount} pour "
+    "«&nbsp;{item_name}&nbsp;» 🥰<br>"
+    "Votre générosité compte énormément pour nous.</p>"
+    "{payment_instructions}"
+    "<p>Avec toute notre affection,<br>Loïc et Meriem</p>"
 )
 
 # Email — owner

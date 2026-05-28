@@ -70,14 +70,16 @@ In **App settings → Secrets** (see `.streamlit/secrets.toml.example`), enable 
 
 | Key | Purpose |
 |-----|---------|
-| `wero_phone` | Wero alias (mobile number) |
+| `phone_number` | Lydia and Wero (same mobile number) |
 | `wero_qr_url` | URL of your Wero QR image, **or** place `data/wero-qr.png` in the repo |
 | `paypal_url` | PayPal.me base link (amount in EUR is appended, e.g. `…/25EUR`) |
 | `iban` | Bank transfer IBAN |
 | `bic` | BIC (optional) |
 | `account_holder` | Account name (optional) |
 
-Equivalent env vars: `SAFIA_WERO_PHONE`, `SAFIA_WERO_QR_URL`, `SAFIA_PAYPAL_URL`, `SAFIA_IBAN`, `SAFIA_BIC`, `SAFIA_ACCOUNT_HOLDER`.
+Equivalent env vars: `SAFIA_PHONE_NUMBER`, `SAFIA_PAYPAL_URL`, `SAFIA_IBAN`, `SAFIA_BIC`, `SAFIA_ACCOUNT_HOLDER`. Legacy `lydia_phone` / `wero_phone` in secrets still work.
+
+The thank-you email repeats these payment details so guests can pay after leaving the site.
 
 | Variable | Example |
 |----------|---------|
