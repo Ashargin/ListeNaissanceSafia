@@ -99,6 +99,41 @@ def paypal_link(base_url: str, amount_eur: int) -> str:
     return f"{url}/{amount_eur}EUR"
 
 
+def _payment_instruction_bullets(
+    options: PaymentOptions,
+    *,
+    amount_eur: int,
+) -> tuple[list[str], list[str]]:
+    """Plain and HTML bullet lines (IBAN → PayPal → Lydia/Wero)."""
+
+    lines_plain: list[str] = []
+    lines_html: list[str] = []
+
+    if options.iban:
+        lines_plain.append(f"- Virement bancaire à l'IBAN : {options.iban}")
+        lines_html.append(
+            "- Virement bancaire à l'IBAN : "
+            f"<strong>{html.escape(options.iban)}</strong>"
+        )
+
+    if options.paypal_url:
+        link = paypal_link(options.paypal_url, amount_eur)
+        lines_plain.append(f"- PayPal avec ce lien : {link}")
+        safe_link = html.escape(link, quote=True)
+        lines_html.append(
+            f'- PayPal avec <strong><a href="{safe_link}">ce lien</a></strong>'
+        )
+
+    if options.phone_number:
+        lines_plain.append(f"- Lydia ou Wero au {options.phone_number}")
+        lines_html.append(
+            "- Lydia ou Wero au "
+            f"<strong>{html.escape(options.phone_number)}</strong>"
+        )
+
+    return (lines_plain, lines_html)
+
+
 def format_donor_email_payment_instructions(
     options: PaymentOptions,
     *,
@@ -110,29 +145,9 @@ def format_donor_email_payment_instructions(
     Returns ``(plain_text, html_fragment)``. Either may be empty if no methods are configured.
     """
 
-    lines_plain: list[str] = []
-    lines_html: list[str] = []
-
-    if options.iban:
-        lines_plain.append(f"- Virement bancaire à l'IBAN : {options.iban}")
-        lines_html.append(
-            f"- Virement bancaire à l'IBAN : {html.escape(options.iban)}"
-        )
-
-    if options.paypal_url:
-        link = paypal_link(options.paypal_url, amount_eur)
-        lines_plain.append(f"- PayPal avec ce lien : {link}")
-        safe_link = html.escape(link, quote=True)
-        lines_html.append(
-            f'- PayPal avec <a href="{safe_link}">ce lien</a>'
-        )
-
-    if options.phone_number:
-        lines_plain.append(f"- Lydia ou Wero au {options.phone_number}")
-        lines_html.append(
-            f"- Lydia ou Wero au {html.escape(options.phone_number)}"
-        )
-
+    lines_plain, lines_html = _payment_instruction_bullets(
+        options, amount_eur=amount_eur
+    )
     if not lines_plain:
         return ("", "")
 
@@ -147,172 +162,25 @@ def format_donor_email_payment_instructions(
     return (plain, html_block)
 
 
-def _render_payment_detail(
-    key: str,
+def render_thank_you_payment_instructions(
     *,
     options: PaymentOptions,
     amount_eur: int,
 ) -> None:
-    if key in {"lydia", "wero"} and options.phone_number:
-        st.write(f"Envoyer au **{options.phone_number}**")
-    elif key == "paypal" and options.paypal_url:
-        link = paypal_link(options.paypal_url, amount_eur)
-        st.link_button(t.PAYMENT_PAYPAL_OPEN, link, type="primary")
-    elif key == "iban" and options.iban:
-        st.write(f"IBAN : **{options.iban}**")
+    """Static payment lines on the thank-you page (same bullets as the donor email)."""
 
-
-def render_payment_methods(
-    *,
-    options: PaymentOptions,
-    amount_eur: int,
-    donor_name: str,
-    item_name: str,
-) -> None:
-    if not options.has_any():
+    lines_plain, lines_html = _payment_instruction_bullets(
+        options, amount_eur=amount_eur
+    )
+    if not lines_plain:
         st.warning(t.WARN_PAYMENT_METHODS_NOT_CONFIGURED)
         return
 
-    methods: list[tuple[str, str]] = []
-    # Fixed order: IBAN → PayPal → Lydia → Wero
-    if options.iban:
-        methods.append(("iban", f"🏦 {t.PAYMENT_METHOD_IBAN}"))
-    if options.paypal_url:
-        methods.append(("paypal", f"🟦 {t.PAYMENT_METHOD_PAYPAL}"))
-    if options.phone_number:
-        methods.append(("lydia", f"🟣 {t.PAYMENT_METHOD_LYDIA}"))
-        methods.append(("wero", f"💠 {t.PAYMENT_METHOD_WERO_PHONE}"))
-
-    selected_key = "payment_method_selected"
-    option_keys = [key for key, _ in methods]
-    current = st.session_state.get(selected_key)
-    if current not in option_keys:
-        current = option_keys[0]
-        st.session_state[selected_key] = current
-
+    intro = t.THANK_YOU_PAYMENT_INTRO
     st.markdown(
-        """
-        <style>
-          section[data-testid="stMain"] #safia-payment-picker-anchor {
-            display: none;
-          }
-          section[data-testid="stMain"] .safia-payment-method-caption {
-            margin: 0 0 0.25rem 0 !important;
-            line-height: 1.2;
-            color: rgba(49, 51, 63, 0.72);
-            font-size: 0.95rem;
-          }
-          section[data-testid="stMain"]
-            div[data-testid="column"]:has(.safia-pay-option) {
-            flex: 0 0 12rem !important;
-            width: 12rem !important;
-            max-width: 12rem !important;
-            min-width: 12rem !important;
-          }
-          section[data-testid="stMain"]
-            div[data-testid="stHorizontalBlock"]:has(.safia-pay-option) {
-            margin-top: 0 !important;
-            margin-bottom: 0.075rem !important;
-            column-gap: 0.8rem !important;
-            gap: 0.8rem !important;
-          }
-          section[data-testid="stMain"]
-            div[data-testid="stHorizontalBlock"]:has(.safia-pay-option)
-            > div[data-testid="column"]:nth-child(2) {
-            padding-left: 0 !important;
-          }
-          section[data-testid="stMain"]
-            div[data-testid="column"]:has(.safia-pay-option)
-            [data-testid="stVerticalBlock"] {
-            gap: 0 !important;
-          }
-          section[data-testid="stMain"] div.element-container:has(.safia-pay-option) {
-            width: 12rem !important;
-            max-width: 12rem !important;
-            margin-bottom: 0 !important;
-            padding-bottom: 0 !important;
-          }
-          section[data-testid="stMain"] .safia-pay-option {
-            box-sizing: border-box;
-            width: 100%;
-            text-align: left;
-            padding: 0.45rem 0.7rem;
-            border: 1px solid rgba(49, 51, 63, 0.2);
-            border-radius: 0.5rem;
-            background: #fff;
-            margin: 0 !important;
-            line-height: 1.35;
-            pointer-events: none;
-            position: relative;
-            z-index: 1;
-          }
-          section[data-testid="stMain"] .safia-pay-option.is-selected {
-            border-color: rgba(49, 51, 63, 0.55);
-          }
-          section[data-testid="stMain"]
-            div.element-container:has(.safia-pay-option)
-            + div.element-container:has([data-testid="stButton"]) {
-            width: 12rem !important;
-            max-width: 12rem !important;
-            margin-top: -2.65rem !important;
-            margin-bottom: 0 !important;
-            height: 2.65rem;
-          }
-          section[data-testid="stMain"]
-            div.element-container:has(.safia-pay-option)
-            + div.element-container
-            [data-testid="stButton"]
-            > button {
-            opacity: 0 !important;
-            width: 100% !important;
-            height: 2.65rem !important;
-            min-height: 2.65rem !important;
-            cursor: pointer !important;
-          }
-        </style>
-        """,
+        f"<p style='margin:0 0 0.35rem 0;line-height:1.5;'>{html.escape(intro)}</p>"
+        f"<p style='margin:0 0 0.35rem 0;line-height:1.5;'>"
+        + "<br>".join(lines_html)
+        + "</p>",
         unsafe_allow_html=True,
     )
-
-    with st.container():
-        st.markdown(
-            '<div id="safia-payment-picker-anchor" aria-hidden="true"></div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            f'<p class="safia-payment-method-caption">{html.escape(t.PAYMENT_METHOD_PICK_LABEL)}</p>',
-            unsafe_allow_html=True,
-        )
-
-        for key, label in methods:
-            is_selected = st.session_state.get(selected_key) == key
-            opt_col, detail_col = st.columns(
-                [0.18, 0.82],
-                gap="medium",
-                vertical_alignment="center",
-            )
-
-            with opt_col:
-                marker = "●" if is_selected else "○"
-                option_class = (
-                    "safia-pay-option is-selected"
-                    if is_selected
-                    else "safia-pay-option"
-                )
-                st.markdown(
-                    f'<div class="{option_class}">{html.escape(f"{marker} {label}")}</div>',
-                    unsafe_allow_html=True,
-                )
-                clicked = st.button(
-                    "\u200b",
-                    key=f"payment_method_btn_{key}",
-                    type="secondary",
-                    width="stretch",
-                )
-                if clicked and not is_selected:
-                    st.session_state[selected_key] = key
-                    st.rerun()
-
-            with detail_col:
-                if is_selected:
-                    _render_payment_detail(key, options=options, amount_eur=amount_eur)

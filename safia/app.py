@@ -6,7 +6,10 @@ import streamlit as st
 
 from safia import texts as t
 from safia.config import Settings, load_settings
-from safia.payment_options import load_payment_options, render_payment_methods
+from safia.payment_options import (
+    load_payment_options,
+    render_thank_you_payment_instructions,
+)
 from safia.content import load_site_content, load_wishlist_items
 from safia.models import WishlistItem, format_eur
 from safia.payments.service import finalize_payment_success
@@ -80,12 +83,11 @@ def _render_thank_you(
             item_name=item_name,
         )
     )
-    render_payment_methods(
+    render_thank_you_payment_instructions(
         options=load_payment_options(data_dir=data_dir),
         amount_eur=amount_eur,
-        donor_name=donor_name,
-        item_name=item_name,
     )
+    render_success_message(t.THANK_YOU_EMAIL_CONFIRMATION)
 
     if st.button(t.BTN_BACK_WISHLIST, type="primary"):
         st.session_state.pop("thank_you", None)

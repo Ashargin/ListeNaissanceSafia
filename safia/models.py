@@ -43,6 +43,6 @@ class Contribution:
 
 
 def format_eur(amount: int) -> str:
-    """Format an integer euro amount for display (e.g. ``€42``)."""
+    """Format an integer euro amount for display (e.g. ``42€``)."""
 
-    return f"€{amount}"
+    return f"{amount}€"

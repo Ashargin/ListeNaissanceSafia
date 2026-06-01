@@ -28,9 +28,14 @@ BTN_BACK_WISHLIST = "Retour à la liste"
 THANK_YOU_BODY = (
     "Merci beaucoup, {donor_name} ! "
     "Votre générosité nous touche énormément 🥰\n\n"
-    "Vous devriez bientôt recevoir un e-mail de confirmation.\n\n"
     "Pour finaliser votre contribution de {amount} pour « {item_name} », retrouvez ci-dessous les informations de paiement.\n"
     "N'oubliez pas d'indiquer votre nom dans le libellé du paiement pour qu'on puisse vous dire merci 😘"
+)
+THANK_YOU_EMAIL_CONFIRMATION = (
+    "Vous devriez aussi recevoir un e-mail récapitulatif avec ces informations."
+)
+THANK_YOU_PAYMENT_INTRO = (
+    "Vous pouvez utiliser :"
 )
 
 PAYMENT_METHOD_PICK_LABEL = "Choisissez un moyen de paiement"
